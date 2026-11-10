@@ -59,7 +59,12 @@ $latest = [ordered]@{
     }
 }
 $latestPath = Join-Path $bundleDir "latest.json"
-$latest | ConvertTo-Json -Depth 5 | Set-Content -Path $latestPath -Encoding utf8
+$json = $latest | ConvertTo-Json -Depth 5
+# -Encoding utf8 en PowerShell 5.1 siempre agrega un BOM al principio del
+# archivo, y eso rompe el JSON para el parser estricto que usa el updater
+# ("error decoding response body" — nunca iba a andar). Hay que escribirlo
+# sin BOM a mano.
+[System.IO.File]::WriteAllText($latestPath, $json, (New-Object System.Text.UTF8Encoding $false))
 
 Write-Output ""
 Write-Output "Listo. Para publicar la actualización:"
