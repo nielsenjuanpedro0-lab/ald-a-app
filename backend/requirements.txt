@@ -1,0 +1,9 @@
+PySide6
+pandas
+openpyxl
+xlrd
+pdfplumber
+pypdf
+pyautogui
+pyperclip
+playwright>=1.42

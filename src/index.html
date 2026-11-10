@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlDía App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,600;1,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B2140; --ink-soft:#30405C;
+    --cream:#F6F2EA; --cream-2:#EFE9DD; --cream-3:#E6DECD;
+    --surface:#FFFFFF;
+    --teal:#17B3B0; --teal-dark:#0E8E8C; --teal-ink:#0A6D6B; --teal-soft:rgba(23,179,176,.12);
+    --rust:#A8472E; --rust-soft:#F1E3DD;
+    --slate:#5B6576; --border:rgba(11,33,64,.1);
+    --shadow-sm:0 1px 2px rgba(11,33,64,.05), 0 6px 16px -8px rgba(11,33,64,.2);
+    --shadow-lg:0 20px 48px -20px rgba(11,33,64,.35);
+  }
+  [data-theme="dark"]{
+    --ink:#EAF0F6; --ink-soft:#AEBBD0;
+    --cream:#0B1220; --cream-2:#121B2E; --cream-3:#182438;
+    --surface:#121B2E;
+    --slate:#8D98AC; --border:rgba(255,255,255,.08);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3), 0 6px 16px -8px rgba(0,0,0,.5);
+    --shadow-lg:0 20px 48px -20px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--cream); color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;
+    transition:background .35s ease, color .35s ease;
+    overflow:hidden;
+  }
+  .mono{font-family:"IBM Plex Mono",monospace;}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+
+  /* ---------- fondo ambiente ---------- */
+  .ambient{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+  .ambient span{
+    position:absolute;border-radius:50%;filter:blur(60px);
+    background:radial-gradient(circle,rgba(23,179,176,.16),transparent 70%);
+    width:46vw;height:46vw;top:-18vw;left:-10vw;
+    animation:drift 28s ease-in-out infinite alternate;
+  }
+  .ambient span.b{
+    background:radial-gradient(circle,rgba(168,71,46,.10),transparent 70%);
+    width:38vw;height:38vw;top:auto;bottom:-16vw;right:-8vw;left:auto;
+    animation-duration:34s;
+  }
+  @keyframes drift{from{transform:translate3d(0,0,0) scale(1);} to{transform:translate3d(3vw,2vw,0) scale(1.12);}}
+  @media (prefers-reduced-motion:reduce){ .ambient span{animation:none;} }
+
+  /* ---------- shell ---------- */
+  .shell{position:relative;z-index:1;display:flex;gap:18px;height:100vh;padding:18px;}
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    width:230px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);
+    border-radius:26px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;
+    padding:18px 14px;transition:background .35s ease, border-color .35s ease;
+  }
+  .side-brand{display:flex;align-items:center;gap:10px;padding:4px 6px 18px;}
+  .side-brand .logo{display:flex;}
+  .side-brand .logo img{display:block;width:28px;height:28px;border-radius:8px;}
+  .side-brand .word{font-family:"IBM Plex Serif",serif;font-style:italic;font-weight:600;font-size:1.15rem;}
+
+  .side-nav{position:relative;display:flex;flex-direction:column;gap:3px;}
+  .side-pill{
+    position:absolute;left:0;right:0;height:42px;border-radius:14px;background:var(--teal-soft);
+    transition:transform .35s cubic-bezier(.16,1,.3,1);z-index:0;
+  }
+  .side-item{
+    position:relative;z-index:1;display:flex;align-items:center;gap:11px;height:42px;padding:0 13px;
+    border-radius:14px;font-size:.92rem;font-weight:500;color:var(--slate);transition:color .2s;
+    width:100%;text-align:left;
+  }
+  .side-item svg{flex-shrink:0;opacity:.85;}
+  .side-item.active{color:var(--teal-ink);font-weight:600;}
+  .side-item:not(.active):hover{color:var(--ink);}
+
+  .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:10px;}
+  .wa-chip{
+    display:flex;align-items:center;gap:9px;background:var(--teal-soft);border-radius:14px;padding:10px 12px;
+  }
+  .wa-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0;animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(23,179,176,.5);}50%{box-shadow:0 0 0 6px rgba(23,179,176,0);}}
+  .wa-chip.off{background:var(--cream-2);}
+  .wa-chip.off .wa-dot{background:var(--text-light,#9aa3b0);animation:none;}
+  .wa-chip.off .t{color:var(--ink);}
+  .wa-chip .t{font-size:.78rem;font-weight:600;color:var(--teal-ink);line-height:1.25;}
+  .wa-chip .s{font-size:.68rem;color:var(--slate);}
+  .qr-overlay{position:fixed;inset:0;background:rgba(11,33,64,.55);display:flex;align-items:center;justify-content:center;z-index:50;}
+  .qr-overlay[hidden]{display:none;}
+  #btnConectar[hidden]{display:none;}
+  .qr-card{position:relative;background:var(--cream);border-radius:20px;padding:28px;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  .qr-cerrar{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;border:none;background:var(--cream-2);color:var(--slate);font-size:1.1rem;line-height:1;cursor:pointer;}
+  .qr-cerrar:hover{background:var(--cream-3);color:var(--ink);}
+  .qr-card h3{margin:0 0 6px;font-size:1.05rem;color:var(--ink);}
+  .qr-card p{margin:0 0 16px;font-size:.84rem;color:var(--slate);}
+  .qr-card img{width:240px;height:240px;border-radius:12px;background:#fff;padding:8px;}
+  .help-item{display:flex;align-items:center;gap:10px;font-size:.86rem;color:var(--slate);padding:8px 6px;border-radius:12px;}
+  .help-item:hover{background:var(--cream-2);color:var(--ink);}
+
+  /* ---------- main ---------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    background:var(--surface);border:1px solid var(--border);border-radius:22px;
+    padding:14px 20px;box-shadow:var(--shadow-sm);margin-bottom:18px;flex-shrink:0;
+    transition:background .35s ease, border-color .35s ease;
+  }
+  .topbar h1{font-family:"IBM Plex Serif",serif;font-size:1.15rem;font-weight:600;margin:0;}
+  .topbar .sub{font-size:.76rem;color:var(--slate);margin-top:2px;}
+  .top-right{display:flex;align-items:center;gap:10px;}
+  .theme-seg{display:flex;background:var(--cream-2);border-radius:999px;padding:3px;gap:2px;}
+  .theme-seg button{font-size:.72rem;font-weight:600;padding:6px 11px;border-radius:999px;color:var(--slate);}
+  .theme-seg button.active{background:var(--surface);color:var(--teal-ink);box-shadow:var(--shadow-sm);}
+
+  .content{flex:1;overflow:auto;position:relative;}
+  .panel{position:absolute;inset:0;overflow:auto;padding:2px 2px 20px;}
+
+  .stagger > *{animation:riseIn .5s cubic-bezier(.16,1,.3,1) both;}
+  .stagger > *:nth-child(1){animation-delay:.02s;}
+  .stagger > *:nth-child(2){animation-delay:.09s;}
+  .stagger > *:nth-child(3){animation-delay:.16s;}
+  .stagger > *:nth-child(4){animation-delay:.23s;}
+  @keyframes riseIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  @media (prefers-reduced-motion:reduce){ .stagger > *{animation:none;} }
+
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;
+    padding:20px;box-shadow:var(--shadow-sm);transition:background .35s ease, border-color .35s ease;
+  }
+  .files-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
+  @media (max-width:900px){ .files-grid{grid-template-columns:repeat(2,1fr);} }
+
+  .file-card{
+    position:relative;cursor:pointer;user-select:none;
+    border-style:dashed !important;border-width:1.6px !important;border-color:rgba(11,33,64,.26) !important;
+    background:var(--cream-2);box-shadow:none;
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  }
+  .file-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--teal) !important;background:var(--surface);}
+  .file-card.done{border-style:solid !important;border-color:rgba(23,179,176,.35) !important;background:var(--surface);box-shadow:var(--shadow-sm);}
+  .file-card .ic{
+    position:relative;width:34px;height:34px;border-radius:10px;background:var(--surface);color:var(--slate);
+    border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;margin-bottom:12px;transition:all .3s;
+  }
+  .file-card .ic .plus{
+    position:absolute;right:-6px;bottom:-6px;width:17px;height:17px;border-radius:50%;
+    background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 2px var(--cream-2);transition:all .3s;
+  }
+  .file-card:hover .ic{border-color:var(--teal);}
+  .file-card.done .ic{background:var(--teal);color:#fff;border-color:var(--teal);animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
+  .file-card.done .ic .plus{opacity:0;transform:scale(.4);}
+  @keyframes pop{0%{transform:scale(.5);}70%{transform:scale(1.15);}100%{transform:scale(1);}}
+  .file-card .lbl{font-size:.82rem;font-weight:600;line-height:1.3;}
+  .file-card .st{margin-top:7px;font-size:.78rem;font-weight:700;color:var(--teal-ink);display:flex;align-items:center;gap:5px;}
+  .file-card .st.real{font-weight:500;color:var(--slate);font-family:"IBM Plex Mono",monospace;font-size:.7rem;}
+  .file-card.done .st{color:var(--teal-ink);}
+  .file-card.done .st.real{color:var(--slate);font-weight:500;font-family:"IBM Plex Mono",monospace;font-size:.7rem;}
+
+  .flow-card{margin-bottom:16px;}
+  .flow-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
+  .flow-head h2{font-size:.98rem;font-weight:600;margin:0;}
+  .flow-head .hint{font-size:.78rem;color:var(--slate);margin-top:2px;}
+
+  .envio-progreso{margin-top:20px;}
+  .envio-progreso .bar{height:6px;border-radius:6px;background:var(--cream-2);overflow:hidden;}
+  .envio-progreso .bar i{display:block;height:100%;width:0%;background:var(--teal);border-radius:6px;transition:width .4s cubic-bezier(.16,1,.3,1);}
+  .envio-progreso[hidden]{display:none;}
+  .envio-log{margin-top:14px;max-height:160px;overflow-y:auto;border-radius:12px;background:var(--cream-2);padding:10px 14px;font-size:.8rem;display:flex;flex-direction:column;gap:5px;}
+  .envio-log[hidden]{display:none;}
+  .envio-log .linea{color:var(--ink-soft);}
+  .envio-log .linea.ok{color:var(--teal-ink);}
+  .envio-log .linea.err{color:#B3362B;}
+
+  .flow-rail{position:relative;display:flex;justify-content:space-between;padding:0 6px;}
+  .flow-rail .track{position:absolute;top:19px;left:28px;right:28px;height:3px;background:var(--border);border-radius:3px;overflow:hidden;}
+  .flow-rail .track i{display:block;height:100%;width:0%;background:var(--teal);border-radius:3px;transition:width .5s cubic-bezier(.16,1,.3,1);}
+  .flow-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;width:76px;}
+  .flow-dot{
+    width:38px;height:38px;border-radius:50%;background:var(--cream-2);border:2px solid var(--border);
+    display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:600;color:var(--slate);
+    transition:all .3s cubic-bezier(.16,1,.3,1);z-index:1;
+  }
+  .flow-step.on .flow-dot{background:var(--teal);border-color:var(--teal);color:#fff;transform:scale(1.08);animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
+  .flow-step .lbl{font-size:.66rem;text-align:center;color:var(--slate);line-height:1.25;max-width:80px;}
+  .flow-step.on .lbl{color:var(--ink);font-weight:600;}
+
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap;}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;font-weight:600;font-size:.88rem;padding:12px 20px;transition:all .18s;}
+  .btn-teal{background:var(--teal);color:#fff;box-shadow:0 10px 24px -10px rgba(23,179,176,.5);}
+  .btn-teal:hover{background:var(--teal-dark);transform:translateY(-1px);}
+  .btn-teal:disabled{background:var(--border);color:var(--slate);box-shadow:none;cursor:not-allowed;transform:none;}
+  .btn-ghost{background:var(--cream-2);color:var(--ink);}
+  .btn-ghost:hover{background:var(--cream-3);}
+  .btn .seta{transition:transform .25s cubic-bezier(.16,1,.3,1);}
+  .btn:hover .seta{transform:translateX(3px);}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media (max-width:900px){ .kpi-row{grid-template-columns:1fr;} }
+  .kpi .n{font-family:"IBM Plex Serif",serif;font-weight:600;font-size:1.9rem;color:var(--ink);}
+  .kpi .l{font-size:.78rem;color:var(--slate);margin-top:4px;}
+  .kpi .bar{height:4px;border-radius:4px;background:var(--cream-2);margin-top:12px;overflow:hidden;}
+  .kpi .bar i{display:block;height:100%;width:0%;background:var(--teal);border-radius:4px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+
+  .ghost-panel{display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:10px;color:var(--slate);}
+  .ghost-panel .ic{width:56px;height:56px;border-radius:18px;background:var(--cream-2);display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+  .ghost-panel b{color:var(--ink);font-size:1.02rem;font-family:"IBM Plex Serif",serif;}
+
+  /* ---------- settings (Configuración) ---------- */
+  .settings-card{margin-bottom:16px;}
+  .settings-card h3{font-size:.86rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--teal-ink);margin:0 0 16px;}
+  .settings-row{display:grid;grid-template-columns:180px 1fr;gap:18px;padding:14px 0;border-top:1px solid var(--border);align-items:start;}
+  .settings-row:first-of-type{border-top:none;}
+  .settings-row .lbl{font-size:.84rem;font-weight:600;color:var(--ink);padding-top:9px;}
+  .settings-row .ctl{min-width:0;}
+  .settings-row .hint{font-size:.74rem;color:var(--slate);margin-top:6px;line-height:1.4;}
+  .input, select.input{
+    width:100%;font-size:.86rem;font-family:inherit;color:var(--ink);
+    background:var(--cream-2);border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;transition:border-color .15s;
+  }
+  .input:focus, select.input:focus{outline:none;border-color:var(--teal);}
+  textarea.input{resize:vertical;min-height:100px;line-height:1.5;}
+  .ctl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .ctl-row .input{flex:1;min-width:160px;}
+  .checkbox-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:.82rem;color:var(--ink);}
+  .btn-small{background:var(--cream-2);color:var(--ink);border-radius:10px;font-size:.78rem;font-weight:600;padding:9px 14px;flex-shrink:0;}
+  .btn-small:hover{background:var(--cream-3);}
+
+  /* ---------- tablas (Lista de clientes / Historial) ---------- */
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .toolbar .search{margin-left:auto;min-width:220px;}
+  .pill-toggle{background:var(--cream-2);color:var(--ink);border-radius:999px;font-size:.82rem;font-weight:600;padding:9px 16px;}
+  .pill-toggle.active{background:var(--teal);color:#fff;}
+  .pill-toggle:hover:not(.active){background:var(--cream-3);}
+  .table-card{padding:0;overflow:hidden;}
+  .table-wrap{overflow:auto;max-height:52vh;}
+  table.data-table{width:100%;border-collapse:collapse;font-size:.82rem;white-space:nowrap;}
+  table.data-table th{
+    position:sticky;top:0;background:var(--cream-2);color:var(--slate);
+    text-transform:uppercase;font-size:.68rem;letter-spacing:.03em;font-weight:700;
+    text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);
+  }
+  table.data-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--ink);}
+  table.data-table tr:hover td{background:var(--cream-2);}
+  table.data-table tr.anulada td{opacity:.45;text-decoration:line-through;}
+  table.data-table tr.fila-seleccionada td{background:var(--teal-soft);box-shadow:inset 3px 0 0 var(--teal);}
+  table.data-table tr{cursor:pointer;}
+  .row-action{background:var(--rust-soft);color:var(--rust);border-radius:8px;font-size:.72rem;font-weight:600;padding:5px 10px;white-space:nowrap;}
+  .tel-input{font:inherit;color:inherit;background:transparent;border:1px solid transparent;border-radius:6px;padding:4px 6px;width:16ch;}
+  .tel-input:hover{border-color:var(--border);}
+  .tel-input:focus{border-color:var(--teal);background:var(--cream);outline:none;}
+  .row-action.reactivar{background:var(--teal-soft);color:var(--teal-ink);}
+  .empty-row td{text-align:center;color:var(--slate);padding:36px 14px;}
+  .preview-box{margin-top:14px;}
+  .preview-box .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--slate);font-weight:700;margin-bottom:8px;}
+  .preview-msg{background:var(--wa-bubble,#DCF8C6);color:#0B2914;border-radius:12px 12px 12px 3px;padding:13px 14px;font-size:.86rem;line-height:1.5;max-width:70%;}
+
+  /* ---------- update banner ---------- */
+  .update-banner{
+    display:flex;align-items:center;gap:12px;
+    background:var(--accent-soft-dark,rgba(23,179,176,.1));
+    border:1px solid var(--teal);border-radius:16px;
+    padding:12px 16px;margin-bottom:14px;
+    animation:riseIn .35s cubic-bezier(.16,1,.3,1);
+  }
+  .update-banner[hidden]{display:none;}
+  .update-banner .ic{color:var(--teal-dark);flex-shrink:0;display:flex;}
+  .update-banner .txt{flex:1;font-size:.88rem;color:var(--ink);}
+  .update-banner .txt b{font-family:"IBM Plex Mono",monospace;}
+  .update-dismiss{color:var(--slate);padding:6px;border-radius:8px;flex-shrink:0;}
+  .update-dismiss:hover{background:var(--cream-2);color:var(--ink);}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed;right:28px;bottom:28px;z-index:50;
+    background:var(--ink);color:#fff;padding:14px 18px;border-radius:16px;box-shadow:var(--shadow-lg);
+    display:flex;align-items:center;gap:10px;font-size:.88rem;font-weight:500;
+    transform:translateY(16px) scale(.96);opacity:0;pointer-events:none;transition:all .35s cubic-bezier(.16,1,.3,1);
+  }
+  .toast.show{transform:none;opacity:1;}
+  .toast .ic{width:22px;height:22px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .toast.error .ic{background:var(--rust);}
+
+  ::-webkit-scrollbar{width:0;height:0;}
+</style>
+
+</head>
+<body>
+
+<div class="ambient"><span></span><span class="b"></span></div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <span class="logo"><img src="logo.png" alt="AlDía" width="28" height="28"></span>
+      <span class="word">AlDía</span>
+    </div>
+    <nav class="side-nav" id="sideNav">
+      <div class="side-pill" id="sidePill"></div>
+      <button class="side-item active" data-panel="inicio">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11.5L12 4l8 7.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Inicio
+      </button>
+      <button class="side-item" data-panel="config">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M3 12h2.4M18.6 12H21M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" stroke-linecap="round"/></svg>
+        Configuración
+      </button>
+      <button class="side-item" data-panel="clientes">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M7 9.5h10M7 13h6" stroke-linecap="round"/></svg>
+        Lista de clientes
+      </button>
+      <button class="side-item" data-panel="historial">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.5V12l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Historial
+      </button>
+    </nav>
+    <div class="side-bottom">
+      <div class="wa-chip off" id="waChip">
+        <span class="wa-dot"></span>
+        <span>
+          <span class="t" style="display:block;">WhatsApp sin conectar</span>
+          <span class="s">Todavía no implementado</span>
+        </span>
+      </div>
+      <button class="help-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 114 2c-.9.7-1.5 1.2-1.5 2.3" stroke-linecap="round"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg>
+        Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="pageTitle">Inicio</h1>
+        <div class="sub" id="pageSub">Noviembre 2026 · 4 cupones rechazados detectados</div>
+      </div>
+      <div class="top-right">
+        <div class="theme-seg">
+          <button class="t-opt" data-t="light">Claro</button>
+          <button class="t-opt active" data-t="auto">Auto</button>
+          <button class="t-opt" data-t="dark">Oscuro</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="update-banner" id="updateBanner" hidden>
+      <span class="ic">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12" stroke-linecap="round"/><path d="M7 10l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke-linecap="round"/></svg>
+      </span>
+      <span class="txt">Hay una versión nueva de AlDía (<b id="updateVersion"></b>) lista para instalar.</span>
+      <button class="btn btn-teal" id="btnUpdateNow" style="padding:9px 16px;font-size:.84rem;">Actualizar ahora</button>
+      <button class="update-dismiss" id="btnUpdateLater" title="Más tarde">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="content">
+      <section class="panel stagger" id="panel-inicio">
+        <div class="files-grid">
+          <div class="card file-card" data-file data-key="mes_actual" data-filters="xlsx,xls">
+            <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7z" stroke-linejoin="round"/><path d="M14 3v5h5" stroke-linejoin="round"/></svg><span class="plus"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span></div>
+            <div class="lbl" id="lblMesActual">Rechazos — mes actual</div>
+            <div class="st"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Cargar archivo</div>
+          </div>
+          <div class="card file-card" id="cardMesPasado" data-file data-key="mes_pasado" data-filters="xlsx,xls">
+            <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7z" stroke-linejoin="round"/><path d="M14 3v5h5" stroke-linejoin="round"/></svg><span class="plus"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span></div>
+            <div class="lbl">Rechazos — mes pasado</div>
+            <div class="st"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Cargar archivo</div>
+          </div>
+          <div class="card file-card" data-file data-key="base_clientes" data-filters="xlsx,xls">
+            <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M7 9.5h10M7 13h6" stroke-linecap="round"/></svg><span class="plus"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span></div>
+            <div class="lbl">Base de clientes</div>
+            <div class="st"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Cargar archivo</div>
+          </div>
+          <div class="card file-card" data-file data-key="carpeta_pdfs" data-filters="pdf">
+            <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7z" stroke-linejoin="round"/><path d="M14 3v5h5" stroke-linejoin="round"/></svg><span class="plus"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span></div>
+            <div class="lbl">Cupones (PDF)</div>
+            <div class="st"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Cargar archivo</div>
+          </div>
+        </div>
+
+        <div class="card flow-card">
+          <div class="flow-head">
+            <div>
+              <h2>Flujo de procesamiento</h2>
+              <div class="hint" id="flowHint">Cargá los 4 archivos para habilitar el inicio.</div>
+            </div>
+            <div class="cta-row">
+              <button class="btn btn-ghost" id="btnConectar" data-wa-label>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16a1 1 0 011 1v10a1 1 0 01-1 1H9l-4 4v-4H4a1 1 0 01-1-1V6a1 1 0 011-1z" stroke-linejoin="round"/></svg>
+                <span class="lbl">Conectar WhatsApp</span>
+              </button>
+              <button class="btn btn-teal" id="btnIniciar" disabled>
+                Iniciar flujo <span class="seta">→</span>
+              </button>
+            </div>
+          </div>
+          <div class="flow-rail" id="flowRail">
+            <div class="track"><i id="flowTrack"></i></div>
+            <div class="flow-step" data-step="1"><div class="flow-dot">01</div><div class="lbl">Detectar rechazos</div></div>
+            <div class="flow-step" data-step="2"><div class="flow-dot">02</div><div class="lbl">Fragmentar PDFs</div></div>
+            <div class="flow-step" data-step="3"><div class="flow-dot">03</div><div class="lbl">Vincular cupones</div></div>
+            <div class="flow-step" data-step="4"><div class="flow-dot">04</div><div class="lbl">Cruzar teléfonos</div></div>
+            <div class="flow-step" data-step="5"><div class="flow-dot">05</div><div class="lbl">Enviar WhatsApp</div></div>
+          </div>
+          <div class="envio-progreso" id="envioProgreso" hidden>
+            <div class="bar"><i id="envioProgresoFill"></i></div>
+          </div>
+          <div class="envio-log" id="envioLog" hidden></div>
+        </div>
+
+        <div class="kpi-row">
+          <div class="card kpi">
+            <div class="n" data-kpi="clientes">0</div>
+            <div class="l">Clientes a procesar</div>
+            <div class="bar"><i data-kpi-bar="clientes"></i></div>
+          </div>
+          <div class="card kpi">
+            <div class="n" data-kpi="cupones">0</div>
+            <div class="l">Cupones cortados</div>
+            <div class="bar"><i data-kpi-bar="cupones"></i></div>
+          </div>
+          <div class="card kpi">
+            <div class="n" data-kpi="enviados">0</div>
+            <div class="l">WhatsApp enviados</div>
+            <div class="bar"><i data-kpi-bar="enviados"></i></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel stagger" id="panel-config" style="display:none;">
+        <div class="card settings-card">
+          <h3>Envío</h3>
+          <div class="settings-row">
+            <span class="lbl">A quién se le avisa</span>
+            <div class="ctl">
+              <select class="input" id="selModoFiltro">
+                <option value="segundo">Solo los que ya venían rechazados el mes pasado (recomendado)</option>
+                <option value="todos">Todos los rechazos del mes</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-row">
+            <span class="lbl">Teléfono de respaldo</span>
+            <div class="ctl">
+              <div class="ctl-row">
+                <input class="input" id="txtTelDefecto" placeholder="+5492494585215">
+                <button class="btn-small" id="btnResetTel">Restablecer</button>
+              </div>
+              <label class="checkbox-row"><input type="checkbox" id="chkUsarTel"> Usar el de respaldo cuando el cliente no tiene teléfono propio</label>
+              <div class="hint">Solo se usa si activás el respaldo; si no, un cliente sin número queda para revisar a mano.</div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <span class="lbl">Mensaje</span>
+            <div class="ctl">
+              <textarea class="input" id="txtPlantilla"></textarea>
+              <div class="ctl-row" style="margin-top:8px;">
+                <button class="btn-small" id="btnResetPlantilla">Restablecer</button>
+              </div>
+              <div class="hint">Variables disponibles: {nombre}, {polizas}, {palabra_poliza}, {palabra_cupon}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-card">
+          <h3>WhatsApp</h3>
+          <div class="settings-row">
+            <span class="lbl">Sesión</span>
+            <div class="ctl">
+              <div class="ctl-row">
+                <button class="btn btn-ghost" id="btnConectarCfg"><span class="lbl">Conectar WhatsApp</span></button>
+                <button class="btn btn-ghost" id="btnProbarCfg">Probar conexión</button>
+              </div>
+              <div class="hint">1) Conectá WhatsApp la primera vez (escaneás el QR). 2) Probá la conexión para chequear que el envío va a andar. — Todavía no implementado en esta versión.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-card">
+          <h3>Historial de enviados</h3>
+          <div class="settings-row">
+            <span class="lbl">Registro</span>
+            <div class="ctl">
+              <button class="btn btn-ghost" id="btnVerHistorialCfg">Ver historial</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-clientes" style="display:none;">
+        <div class="card toolbar" style="margin-bottom:14px;">
+          <button class="pill-toggle active" id="btnVistaSegundo">Todos los Rechazos</button>
+          <button class="pill-toggle" id="btnVistaPrimero" hidden>1ros Rechazos</button>
+          <button class="btn-small" id="btnAnularSel">Anular Póliza</button>
+          <button class="btn-small" id="btnImprimirClientes">Imprimir</button>
+          <input class="input search" id="buscarClientes" placeholder="Buscar cliente, DNI o póliza…">
+        </div>
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="data-table" id="tablaClientes">
+              <thead><tr><th>Cargando…</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card preview-box" id="previewBox" hidden>
+          <div class="lbl">Vista previa del mensaje</div>
+          <div class="preview-msg" id="previewMsg"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-historial" style="display:none;">
+        <div class="card toolbar" style="margin-bottom:14px;">
+          <input class="input search" id="buscarHistorial" placeholder="Buscar cliente o teléfono…" style="margin-left:0;">
+        </div>
+        <div class="card table-card">
+          <div class="table-wrap">
+            <table class="data-table" id="tablaHistorial">
+              <thead><tr><th>Cliente</th><th>Teléfono</th><th>Pólizas</th><th>Estado</th><th>Fecha</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast">
+  <span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+  <span id="toastMsg">Listo</span>
+</div>
+
+<div class="qr-overlay" id="qrOverlay" hidden>
+  <div class="qr-card">
+    <button class="qr-cerrar" id="qrCerrar" aria-label="Cancelar">×</button>
+    <h3>Escaneá el código con el celular</h3>
+    <p>WhatsApp → Dispositivos vinculados → Vincular un dispositivo</p>
+    <img id="qrImg" src="" alt="Código QR de WhatsApp">
+  </div>
+</div>
+
+<script>
+  // ---- sidebar nav ----
+  const items = [...document.querySelectorAll('.side-item')];
+  const pill = document.getElementById('sidePill');
+  const panels = { inicio:'panel-inicio', config:'panel-config', clientes:'panel-clientes', historial:'panel-historial' };
+  const titles = { inicio:['Inicio','Noviembre 2026 · 4 cupones rechazados detectados'],
+                   config:['Configuración','WhatsApp, teléfono de respaldo y mensaje'],
+                   clientes:['Lista de clientes','Quién recibe el aviso, con su cupón'],
+                   historial:['Historial','Envíos de meses anteriores'] };
+
+  function placePill(el){ pill.style.transform = `translateY(${el.offsetTop}px)`; }
+  function sizePill(){ if(items.length) pill.style.height = items[0].offsetHeight + 'px'; }
+
+  items.forEach(it => it.addEventListener('click', () => {
+    items.forEach(i => i.classList.remove('active'));
+    it.classList.add('active');
+    placePill(it);
+    const key = it.dataset.panel;
+    Object.values(panels).forEach(id => document.getElementById(id).style.display = 'none');
+    const target = document.getElementById(panels[key]);
+    target.style.display = 'block';
+    target.style.animation = 'none'; target.offsetHeight; target.style.animation = 'riseIn .4s cubic-bezier(.16,1,.3,1)';
+    document.getElementById('pageTitle').textContent = titles[key][0];
+    document.getElementById('pageSub').textContent = titles[key][1];
+    if (key === 'clientes') cargarClientes();
+    else if (key === 'historial') cargarHistorial();
+    else if (key === 'config') cargarConfiguracion();
+  }));
+  sizePill(); placePill(items[0]);
+
+  // ---- theme segmented control ----
+  const tOpts = [...document.querySelectorAll('.t-opt')];
+  tOpts.forEach(b => b.addEventListener('click', () => {
+    tOpts.forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const mode = b.dataset.t;
+    if(mode === 'dark') document.documentElement.setAttribute('data-theme','dark');
+    else if(mode === 'light') document.documentElement.setAttribute('data-theme','light');
+    else document.documentElement.removeAttribute('data-theme');
+  }));
+
+  // ---- puente con el backend Python ----
+  const { invoke } = window.__TAURI__.core;
+  const { open: openDialog } = window.__TAURI__.dialog;
+  const { listen } = window.__TAURI__.event;
+
+  async function backend(cmd, args = {}) {
+    return invoke('backend_call', { cmd, args });
+  }
+
+  // Progreso en vivo durante operaciones largas (conectar/enviar WhatsApp):
+  // el backend manda líneas sueltas mientras sigue trabajando, no solo al
+  // final. Se muestran en el texto bajo "Flujo de procesamiento".
+  listen('backend-event', (evento) => {
+    const payload = evento.payload || {};
+    if (payload.event === 'log') {
+      const msg = payload.data?.message || '';
+      const el = document.getElementById('flowHint');
+      if (el) el.textContent = msg;
+      // Durante el envío, cada cliente procesado manda una línea con
+      // "[2/40] ..." adelante: de ahí sale el % de la barra y el renglón
+      // que se agrega a la lista en vivo.
+      const m = msg.match(/^\[(\d+)\/(\d+)\]\s*(.*)$/);
+      if (m) {
+        const [, idx, total, resto] = m;
+        const fill = document.getElementById('envioProgresoFill');
+        if (fill) fill.style.width = `${(Number(idx) / Number(total)) * 100}%`;
+        document.querySelector('[data-kpi-bar="enviados"]').style.width = `${(Number(idx) / Number(total)) * 100}%`;
+        const log = document.getElementById('envioLog');
+        if (log) {
+          const linea = document.createElement('div');
+          linea.className = 'linea' + (resto.startsWith('✓') ? ' ok' : (resto.startsWith('✗') ? ' err' : ''));
+          linea.textContent = resto;
+          log.appendChild(linea);
+          log.scrollTop = log.scrollHeight;
+        }
+      }
+    } else if (payload.event === 'qr') {
+      const overlay = document.getElementById('qrOverlay');
+      const img = document.getElementById('qrImg');
+      const b64 = payload.data?.image_base64;
+      if (b64) {
+        img.src = 'data:image/png;base64,' + b64;
+        overlay.hidden = false;
+      } else {
+        overlay.hidden = true;
+      }
+    }
+  });
+
+  // ---- toast (declarado antes: los pickers de archivo ya lo usan) ----
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  function showToast(msg, isError = false) {
+    toastMsg.textContent = msg;
+    toast.classList.add('show');
+    toast.classList.toggle('error', isError);
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 4200);
+  }
+
+  function animateCount(el, to) {
+    const dur = 700, start = performance.now();
+    function tick(now) {
+      const p = Math.min(1, (now - start) / dur);
+      el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---- estado de la sesión: qué archivo real eligió el usuario ----
+  const workspace = { base_clientes: '', carpeta_pdfs: '', mes_pasado: '', mes_actual: '' };
+  let carpetaTrabajo = '';
+  let ultimoExcelSegundo = '';
+  let ultimoExcelPrimero = '';
+  let listoParaEnviar = false;
+
+  const fileCards = [...document.querySelectorAll('[data-file]')];
+  const btnIniciar = document.getElementById('btnIniciar');
+
+  function checkReady() {
+    const requeridas = fileCards.filter(c => !c.hidden);
+    const listas = requeridas.filter(c => c.classList.contains('done')).length;
+    btnIniciar.disabled = listas < requeridas.length;
+  }
+
+  // ---- modo de filtro: "A quién se le avisa" (se define en Configuración,
+  // pero cambia qué tarjeta pide Inicio) ----
+  let notificarTodos = false;
+  const cardMesPasado = document.getElementById('cardMesPasado');
+  const lblMesActual = document.getElementById('lblMesActual');
+
+  function aplicarModoFiltro(todos) {
+    notificarTodos = todos;
+    cardMesPasado.hidden = todos;
+    lblMesActual.textContent = todos ? 'Rechazos (listado principal)' : 'Rechazos — mes actual';
+    checkReady();
+  }
+
+  function pintarTarjeta(card, nombre) {
+    card.classList.add('done');
+    const st = card.querySelector('.st');
+    st.classList.add('real');
+    st.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>' + nombre;
+  }
+
+  fileCards.forEach(card => card.addEventListener('click', async () => {
+    const key = card.dataset.key;
+    const filtros = card.dataset.filters.split(',');
+    try {
+      const multiple = key === 'carpeta_pdfs';
+      const elegido = await openDialog({
+        multiple,
+        filters: [{ name: filtros.join('/').toUpperCase(), extensions: filtros }],
+      });
+      if (!elegido) return; // cancelado
+      const rutas = Array.isArray(elegido) ? elegido : [elegido];
+      workspace[key] = rutas.join(';');
+      await backend('save_config', { [key]: workspace[key] });
+      const nombre = rutas.length > 1
+        ? `${rutas.length} PDFs seleccionados`
+        : rutas[0].split(/[\\/]/).pop();
+      pintarTarjeta(card, nombre);
+      checkReady();
+    } catch (e) {
+      showToast('No se pudo abrir el selector de archivos: ' + e, true);
+    }
+  }));
+
+  // ---- flujo real: detectar -> fragmentar -> vincular -> cruzar telefonos ----
+  const steps = [...document.querySelectorAll('.flow-step')];
+  const track = document.getElementById('flowTrack');
+
+  function marcarPaso(i) {
+    steps[i].classList.add('on');
+    track.style.width = (i / (steps.length - 1) * 100) + '%';
+  }
+
+  btnIniciar.addEventListener('click', async () => {
+    if (btnIniciar.disabled) return;
+    if (listoParaEnviar) { await enviarWhatsappReal(); return; }
+    btnIniciar.disabled = true;
+    steps.forEach(s => s.classList.remove('on'));
+    track.style.width = '0%';
+    document.getElementById('envioLog').hidden = true;
+    document.getElementById('envioProgreso').hidden = true;
+
+    try {
+      if (!carpetaTrabajo) {
+        const r = await backend('workspace_dir');
+        carpetaTrabajo = r.carpeta;
+      }
+      const destino = (nombre) => carpetaTrabajo + '\\' + nombre;
+
+      const rechazos = await backend('detectar_rechazos', {
+        mes_pasado: notificarTodos ? '' : workspace.mes_pasado,
+        mes_actual: workspace.mes_actual,
+        incluir_todos: notificarTodos,
+        destino: destino('01_rechazos.xlsx'),
+      });
+      marcarPaso(0);
+
+      // Los PDFs recortados van sueltos en la carpeta de trabajo (no en una
+      // subcarpeta): al mandar por WhatsApp, el cupón de cada póliza se
+      // busca "al lado" del Excel final, no adentro de otra carpeta.
+      const cupones = await backend('fragmentar_pdfs', {
+        carpeta_pdfs: workspace.carpeta_pdfs,
+        destino: carpetaTrabajo,
+      });
+      marcarPaso(1);
+      animateCount(document.querySelector('[data-kpi="cupones"]'), cupones.cantidad);
+      document.querySelector('[data-kpi-bar="cupones"]').style.width = '100%';
+
+      const vinculado = await backend('vincular_cupones', {
+        excel_rechazos: rechazos.archivo,
+        carpeta_cupones: cupones.carpeta,
+        destino: destino('02_vinculado.xlsx'),
+      });
+      marcarPaso(2);
+
+      const final = await backend('cruzar_telefonos', {
+        excel_vinculado: vinculado.archivo,
+        base_clientes: workspace.base_clientes,
+        destino: destino('03_final.xlsx'),
+      });
+      marcarPaso(3);
+      animateCount(document.querySelector('[data-kpi="clientes"]'), final.cantidad);
+      document.querySelector('[data-kpi-bar="clientes"]').style.width = '100%';
+
+      // Lista de clientes lee de estos paths — se guardan para que sigan
+      // disponibles aunque se cierre y se vuelva a abrir la app.
+      ultimoExcelSegundo = final.archivo;
+      ultimoExcelPrimero = rechazos.archivo_1ros || '';
+      await backend('save_config', {
+        ultimo_excel_segundo: ultimoExcelSegundo,
+        ultimo_excel_primero: ultimoExcelPrimero,
+      });
+
+      // El botón pasa a una segunda etapa: ahora manda de verdad. Así hay
+      // una pausa natural para revisar Lista de clientes (y anular algo si
+      // hace falta) antes de que salga un solo WhatsApp.
+      listoParaEnviar = true;
+      btnIniciar.innerHTML = 'Enviar WhatsApp <span class="seta">→</span>';
+      document.getElementById('flowHint').textContent =
+        `${final.cantidad} clientes listos. Revisá Lista de clientes si hace falta, y apretá "Enviar WhatsApp" cuando quieras.`;
+      showToast(`Listo: ${final.cantidad} clientes a notificar, con su cupón ya separado.`);
+    } catch (e) {
+      showToast('Se cortó el flujo: ' + e, true);
+    } finally {
+      btnIniciar.disabled = false;
+    }
+  });
+
+  async function enviarWhatsappReal() {
+    // Mismo cuidado que en conectarWhatsapp: si el chequeo automático de
+    // cada 2 minutos se dispara mientras esto está enviando, pelean por la
+    // misma sesión de Chrome (todo se pone lento y el chip muestra "sin
+    // conectar" a pesar de que el envío sigue andando bien).
+    waConectando = true;
+    btnIniciar.disabled = true;
+    btnIniciar.textContent = 'Enviando…';
+    document.getElementById('flowHint').textContent = 'Abriendo WhatsApp Web…';
+    const envioLog = document.getElementById('envioLog');
+    envioLog.innerHTML = '';
+    envioLog.hidden = false;
+    document.getElementById('envioProgreso').hidden = false;
+    document.getElementById('envioProgresoFill').style.width = '0%';
+    document.querySelector('[data-kpi-bar="enviados"]').style.width = '0%';
+    try {
+      const cfg = await backend('load_config');
+      const r = await backend('whatsapp_enviar_todos', {
+        excel_entrada: ultimoExcelSegundo,
+        telefono_por_defecto: cfg.telefono_defecto || '+5492494585215',
+        plantilla_mensaje: cfg.plantilla_mensaje || '',
+      });
+      marcarPaso(4);
+      animateCount(document.querySelector('[data-kpi="enviados"]'), r.nuevos_enviados);
+      document.querySelector('[data-kpi-bar="enviados"]').style.width = '100%';
+      document.getElementById('flowHint').textContent =
+        `Enviados: ${r.nuevos_enviados} · ya notificados antes: ${r.previamente_enviados} · con problemas: ${r.fallas}.`;
+      showToast(`WhatsApp enviado: ${r.nuevos_enviados} mensajes nuevos, ${r.fallas} con problemas (revisá Historial).`, r.fallas > 0);
+      setWaConectado(true);
+    } catch (e) {
+      showToast('No se pudo completar el envío: ' + e, true);
+    } finally {
+      waConectando = false;
+      listoParaEnviar = false;
+      btnIniciar.disabled = false;
+      btnIniciar.innerHTML = 'Iniciar flujo <span class="seta">→</span>';
+    }
+  }
+
+  // ---- WhatsApp: conectar / probar, de verdad ----
+  function setWaConectado(conectado) {
+    const chip = document.getElementById('waChip');
+    chip.classList.toggle('off', !conectado);
+    chip.querySelector('.t').textContent = conectado ? 'WhatsApp conectado' : 'WhatsApp sin conectar';
+    chip.querySelector('.s').textContent = conectado ? 'Listo para enviar' : 'Tocá "Conectar WhatsApp"';
+    // Ya está el chip de abajo mostrando "conectado": el botón de Inicio
+    // solo hace falta cuando hay algo que hacer (conectar).
+    document.getElementById('btnConectar').hidden = conectado;
+  }
+
+  let waConectando = false;
+  let waCancelado = false;
+  document.getElementById('qrCerrar').addEventListener('click', async () => {
+    waCancelado = true;
+    document.getElementById('qrOverlay').hidden = true;
+    try { await invoke('backend_cancel'); } catch (e) { /* no importa, igual se reinicia */ }
+  });
+
+  async function conectarWhatsapp(boton, silencioso = false) {
+    // Dos intentos a la vez abren el mismo perfil de Chrome y se pisan (ninguno
+    // llega a mostrar nada): si ya hay uno en curso, el chequeo automático se
+    // salta este turno en vez de competir con él.
+    if (waConectando) return;
+    waConectando = true;
+    const lbl = boton ? (boton.querySelector('.lbl') || boton) : null;
+    const original = lbl ? lbl.textContent : '';
+    if (boton) { boton.disabled = true; lbl.textContent = 'Conectando…'; }
+    if (!silencioso) showToast('Abriendo WhatsApp Web — si pide QR, escaneálo con el teléfono.');
+    try {
+      const cfg = await backend('load_config');
+      await backend('whatsapp_probar', { perfil_dir: cfg.perfil_dir || '' });
+      setWaConectado(true);
+      if (!silencioso) showToast('WhatsApp conectado.');
+    } catch (e) {
+      setWaConectado(false);
+      if (waCancelado) { showToast('Conexión cancelada.'); waCancelado = false; }
+      else if (!silencioso) showToast('No se pudo conectar: ' + e, true);
+    } finally {
+      waConectando = false;
+      if (boton) {
+        boton.disabled = false;
+        lbl.textContent = original;
+      }
+    }
+  }
+  document.getElementById('btnConectar').addEventListener('click', (ev) => conectarWhatsapp(ev.currentTarget));
+
+  // Al abrir la app, probar en silencio la sesión ya guardada (si existe)
+  // para no tener que tocar "Conectar WhatsApp" a mano cada vez. Y después,
+  // reconfirmar cada 2 minutos: si cierran la sesión desde el celular, que
+  // dejemos de mostrar "conectado" sin que haga falta reabrir la app.
+  conectarWhatsapp(null, true);
+  setInterval(() => conectarWhatsapp(null, true), 120000);
+
+  // ---- estado inicial: traer lo que ya estaba guardado de una sesión anterior ----
+  (async () => {
+    try {
+      await backend('ping');
+      const cfg = await backend('load_config');
+      for (const key of Object.keys(workspace)) {
+        if (cfg[key]) workspace[key] = cfg[key];
+      }
+      aplicarModoFiltro(cfg.notificar_todos === true);
+      ultimoExcelSegundo = cfg.ultimo_excel_segundo || '';
+      ultimoExcelPrimero = cfg.ultimo_excel_primero || '';
+      const estado = await backend('check_files', workspace);
+      fileCards.forEach(card => {
+        const info = estado[card.dataset.key];
+        if (info && info.cargado) {
+          pintarTarjeta(card, info.cantidad > 1 ? `${info.cantidad} PDFs seleccionados` : info.nombre);
+        }
+      });
+      checkReady();
+    } catch (e) {
+      showToast('No pude conectar con el backend Python: ' + e, true);
+    }
+  })();
+
+  // ---- Configuración ----
+  function cargarConfiguracion() {
+    (async () => {
+      try {
+        const cfg = await backend('load_config');
+        document.getElementById('selModoFiltro').value = cfg.notificar_todos ? 'todos' : 'segundo';
+        document.getElementById('txtTelDefecto').value = cfg.telefono_defecto || '+5492494585215';
+        document.getElementById('chkUsarTel').checked = cfg.usar_telefono_defecto !== false;
+        if (cfg.plantilla_mensaje) {
+          document.getElementById('txtPlantilla').value = cfg.plantilla_mensaje;
+        } else {
+          const d = await backend('plantilla_default');
+          document.getElementById('txtPlantilla').value = d.plantilla;
+        }
+      } catch (e) {
+        showToast('No pude cargar la configuración: ' + e, true);
+      }
+    })();
+  }
+
+  document.getElementById('selModoFiltro').addEventListener('change', async (ev) => {
+    const todos = ev.target.value === 'todos';
+    aplicarModoFiltro(todos);
+    await backend('save_config', { notificar_todos: todos });
+  });
+  document.getElementById('txtTelDefecto').addEventListener('change', (ev) => {
+    backend('save_config', { telefono_defecto: ev.target.value.trim() });
+  });
+  document.getElementById('btnResetTel').addEventListener('click', () => {
+    document.getElementById('txtTelDefecto').value = '+5492494585215';
+    backend('save_config', { telefono_defecto: '+5492494585215' });
+    showToast('Número predeterminado restablecido');
+  });
+  document.getElementById('chkUsarTel').addEventListener('change', (ev) => {
+    backend('save_config', { usar_telefono_defecto: ev.target.checked });
+  });
+  document.getElementById('txtPlantilla').addEventListener('change', (ev) => {
+    backend('save_config', { plantilla_mensaje: ev.target.value });
+  });
+  document.getElementById('btnResetPlantilla').addEventListener('click', async () => {
+    const d = await backend('plantilla_default');
+    document.getElementById('txtPlantilla').value = d.plantilla;
+    backend('save_config', { plantilla_mensaje: d.plantilla });
+    showToast('Mensaje restablecido');
+  });
+  document.getElementById('btnConectarCfg').addEventListener('click', (ev) => conectarWhatsapp(ev.currentTarget));
+  document.getElementById('btnProbarCfg').addEventListener('click', (ev) => conectarWhatsapp(ev.currentTarget));
+  document.getElementById('btnVerHistorialCfg').addEventListener('click', () => {
+    document.querySelector('.side-item[data-panel="historial"]').click();
+  });
+
+  // ---- Lista de clientes ----
+  let clientesVista = 'segundo'; // 'segundo' (2dos/todos) o 'primero' (1ros)
+  let clientesFilas = [];
+  let clientesCols = [];
+  let filaSeleccionada = null;
+
+  function excelDeVista() {
+    return clientesVista === 'primero' ? ultimoExcelPrimero : ultimoExcelSegundo;
+  }
+
+  function renderClientes() {
+    const tabla = document.getElementById('tablaClientes');
+    const thead = tabla.querySelector('thead');
+    const tbody = tabla.querySelector('tbody');
+    const filtro = (document.getElementById('buscarClientes').value || '').toLowerCase();
+
+    // El teléfono es el dato más importante de esta pantalla (a quién le
+    // llega el WhatsApp) pero en el Excel viene casi al final: se lo trae
+    // justo al lado del cliente para no tener que scrollear para verlo.
+    const colsRaw = clientesCols.length ? clientesCols : ['Mensaje'];
+    const esTel = (c) => /TEL/i.test(c);
+    const telCols = colsRaw.filter(esTel);
+    const restoCols = colsRaw.filter(c => !esTel(c));
+    const cols = telCols.length ? [restoCols[0], ...telCols, ...restoCols.slice(1)] : colsRaw;
+    thead.innerHTML = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '<th>Acción</th></tr>';
+
+    const filas = clientesFilas.filter(f =>
+      !filtro || cols.some(c => String(f[c] || '').toLowerCase().includes(filtro)));
+
+    if (!filas.length) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length + 1}">
+        ${ultimoExcelSegundo ? 'Sin resultados.' : 'Cargá los archivos y corré el flujo en Inicio para ver los clientes.'}
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filas.map(f => {
+      const celdas = cols.map(c => esTel(c)
+        ? `<td><input class="tel-input" data-col="${c}" value="${String(f[c] ?? '').replace(/"/g, '&quot;')}"></td>`
+        : `<td>${f[c] ?? ''}</td>`).join('');
+      const accion = f._anulada
+        ? `<button class="row-action reactivar" data-id="${f._id}">Reactivar</button>`
+        : `<button class="row-action" data-id="${f._id}">Anular</button>`;
+      const clases = [f._anulada ? 'anulada' : '', f._id === filaSeleccionada ? 'fila-seleccionada' : ''].filter(Boolean).join(' ');
+      return `<tr class="${clases}" data-id="${f._id}">${celdas}<td>${accion}</td></tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('tr[data-id]').forEach(tr => {
+      tr.addEventListener('click', (ev) => {
+        if (ev.target.closest('.row-action') || ev.target.closest('.tel-input')) return;
+        filaSeleccionada = tr.dataset.id;
+        tbody.querySelectorAll('tr.fila-seleccionada').forEach(x => x.classList.remove('fila-seleccionada'));
+        tr.classList.add('fila-seleccionada');
+        actualizarBtnAnularSel();
+        mostrarPreview(filaSeleccionada);
+      });
+    });
+    tbody.querySelectorAll('.row-action').forEach(btn => {
+      btn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        await anularFila(btn.dataset.id, !btn.classList.contains('reactivar'));
+      });
+    });
+    // Corregir el teléfono a mano (la base de clientes a veces tiene uno
+    // viejo): se guarda al salir del campo, directo en el Excel que después
+    // lee el envío real.
+    tbody.querySelectorAll('.tel-input').forEach(inp => {
+      inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') inp.blur(); });
+      inp.addEventListener('blur', async () => {
+        const tr = inp.closest('tr[data-id]');
+        const fila = clientesFilas.find(f => f._id === tr.dataset.id);
+        const original = fila ? (fila[inp.dataset.col] ?? '') : '';
+        const nuevo = inp.value.trim();
+        if (nuevo === String(original)) return;
+        try {
+          await backend('actualizar_telefono', {
+            excel_path: excelDeVista(), fila_id: tr.dataset.id, telefono: nuevo,
+          });
+          if (fila) fila[inp.dataset.col] = nuevo;
+          showToast('Teléfono actualizado.');
+        } catch (e) {
+          inp.value = original;
+          showToast('No se pudo guardar el teléfono: ' + e, true);
+        }
+      });
+    });
+  }
+
+  // Los nombres de columna cambian según el Excel de origen ("Póliza Nro."
+  // en el real, "POLIZA" en el de prueba): busca por si el nombre de columna
+  // CONTIENE el término, en vez de pedir una coincidencia exacta.
+  function buscarCampo(fila, ...terminos) {
+    const quitarAcentos = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    for (const clave of Object.keys(fila)) {
+      const normalizada = quitarAcentos(clave).toLowerCase();
+      if (terminos.some(t => normalizada.includes(t))) return fila[clave];
+    }
+    return '';
+  }
+
+  function actualizarBtnAnularSel() {
+    const btn = document.getElementById('btnAnularSel');
+    const fila = clientesFilas.find(f => f._id === filaSeleccionada);
+    btn.textContent = fila && fila._anulada ? 'Reactivar Póliza' : 'Anular Póliza';
+  }
+
+  async function mostrarPreview(id) {
+    const fila = clientesFilas.find(f => f._id === id);
+    if (!fila) return;
+    const nombre = buscarCampo(fila, 'cliente', 'asegurado') || 'Cliente';
+    const poliza = buscarCampo(fila, 'poliza');
+    document.querySelector('#previewBox .lbl').textContent = `Vista previa del mensaje — ${nombre}`;
+    try {
+      const r = await backend('vista_previa_mensaje', { nombre: String(nombre).split(' ')[0], polizas: [poliza] });
+      document.getElementById('previewMsg').textContent = r.mensaje;
+      document.getElementById('previewBox').hidden = false;
+    } catch (e) { /* sin plantilla todavía, no interrumpe */ }
+  }
+
+  async function anularFila(id, anular) {
+    const excel = excelDeVista();
+    if (!excel) return;
+    try {
+      await backend('anular_poliza', { excel_path: excel, fila_id: id, anular });
+      const fila = clientesFilas.find(f => f._id === id);
+      if (fila) fila._anulada = anular;
+      renderClientes();
+      actualizarBtnAnularSel();
+      showToast(anular ? 'Póliza anulada' : 'Póliza reactivada');
+    } catch (e) {
+      showToast('No se pudo actualizar: ' + e, true);
+    }
+  }
+
+  function cargarClientes() {
+    const btnTodos = document.getElementById('btnVistaSegundo');
+    const btnPrimero = document.getElementById('btnVistaPrimero');
+    btnTodos.textContent = notificarTodos ? 'Todos los Rechazos' : '2dos Rechazos';
+    btnPrimero.hidden = notificarTodos;
+    clientesVista = 'segundo';
+    btnTodos.classList.add('active');
+    btnPrimero.classList.remove('active');
+
+    (async () => {
+      const excel = excelDeVista();
+      if (!excel) { clientesFilas = []; clientesCols = []; renderClientes(); return; }
+      try {
+        const r = await backend('listar_clientes', { excel_path: excel });
+        clientesCols = r.columnas;
+        clientesFilas = r.filas;
+        renderClientes();
+      } catch (e) {
+        showToast('No pude leer la lista de clientes: ' + e, true);
+      }
+    })();
+  }
+
+  document.getElementById('btnVistaSegundo').addEventListener('click', () => {
+    clientesVista = 'segundo';
+    document.getElementById('btnVistaSegundo').classList.add('active');
+    document.getElementById('btnVistaPrimero').classList.remove('active');
+    cargarVistaClientes();
+  });
+  document.getElementById('btnVistaPrimero').addEventListener('click', () => {
+    clientesVista = 'primero';
+    document.getElementById('btnVistaPrimero').classList.add('active');
+    document.getElementById('btnVistaSegundo').classList.remove('active');
+    cargarVistaClientes();
+  });
+  function cargarVistaClientes() {
+    const excel = excelDeVista();
+    if (!excel) {
+      showToast(`No hay datos de ${clientesVista === 'primero' ? '1ros' : '2dos'} rechazos procesados todavía. Corré el flujo en Inicio.`, true);
+      clientesFilas = []; clientesCols = []; renderClientes();
+      return;
+    }
+    backend('listar_clientes', { excel_path: excel }).then(r => {
+      clientesCols = r.columnas; clientesFilas = r.filas; renderClientes();
+    }).catch(e => showToast('No pude leer la lista: ' + e, true));
+  }
+  document.getElementById('buscarClientes').addEventListener('input', renderClientes);
+  document.getElementById('btnAnularSel').addEventListener('click', () => {
+    if (!filaSeleccionada) { showToast('Hacé clic en una fila primero', true); return; }
+    const fila = clientesFilas.find(f => f._id === filaSeleccionada);
+    anularFila(filaSeleccionada, fila ? !fila._anulada : true);
+  });
+  document.getElementById('btnImprimirClientes').addEventListener('click', async () => {
+    const excel = excelDeVista();
+    if (!excel) { showToast('No hay listado para imprimir', true); return; }
+    try {
+      await backend('imprimir_listado', { excel_path: excel, titulo: 'Lista de clientes' });
+      showToast('Abriendo el listado…');
+    } catch (e) {
+      showToast('No se pudo generar el listado: ' + e, true);
+    }
+  });
+
+  // ---- Historial ----
+  let historialFilas = [];
+  function renderHistorial() {
+    const tbody = document.querySelector('#tablaHistorial tbody');
+    const filtro = (document.getElementById('buscarHistorial').value || '').toLowerCase();
+    const filas = historialFilas.filter(f =>
+      !filtro || f.cliente.toLowerCase().includes(filtro) || f.telefono.toLowerCase().includes(filtro));
+    if (!filas.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Todavía no se mandó ningún WhatsApp.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filas.map(f => `<tr>
+      <td>${f.cliente}</td><td>${f.telefono}</td><td>${f.polizas}</td><td>${f.estado}</td><td>${f.fecha}</td>
+    </tr>`).join('');
+  }
+  function cargarHistorial() {
+    backend('historial_listar').then(r => { historialFilas = r.filas; renderHistorial(); })
+      .catch(e => showToast('No pude leer el historial: ' + e, true));
+  }
+  document.getElementById('buscarHistorial').addEventListener('input', renderHistorial);
+
+  // ---- actualizaciones automáticas ----
+  (async () => {
+    const banner = document.getElementById('updateBanner');
+    const btnNow = document.getElementById('btnUpdateNow');
+    const btnLater = document.getElementById('btnUpdateLater');
+    const vLabel = document.getElementById('updateVersion');
+
+    btnLater.addEventListener('click', () => { banner.hidden = true; });
+
+    try {
+      const { check } = window.__TAURI__.updater;
+      const { relaunch } = window.__TAURI__.process;
+      const update = await check();
+      if (!update) return; // ya está al día
+
+      vLabel.textContent = update.version;
+      banner.hidden = false;
+
+      btnNow.addEventListener('click', async () => {
+        btnNow.disabled = true;
+        btnNow.textContent = 'Descargando…';
+        try {
+          let recibido = 0, total = 0;
+          await update.downloadAndInstall((evento) => {
+            if (evento.event === 'Started') total = evento.data.contentLength || 0;
+            if (evento.event === 'Progress') {
+              recibido += evento.data.chunkLength;
+              btnNow.textContent = total
+                ? `Descargando… ${Math.min(100, Math.round(recibido / total * 100))}%`
+                : 'Descargando…';
+            }
+          });
+          btnNow.textContent = 'Reiniciando…';
+          await relaunch();
+        } catch (e) {
+          showToast('No se pudo instalar la actualización: ' + e, true);
+          btnNow.disabled = false;
+          btnNow.textContent = 'Actualizar ahora';
+        }
+      });
+    } catch (e) {
+      // Sin conexión, o todavía no hay ningún "latest.json" publicado: no
+      // interrumpe el uso normal de la app, solo no se ve el cartel.
+      console.warn('No se pudo chequear actualizaciones:', e);
+    }
+  })();
+</script>
+
+</body>
+</html>
