@@ -609,7 +609,7 @@
     if (payload.event === 'log') {
       const msg = payload.data?.message || '';
       const el = document.getElementById('flowHint');
-      if (el) el.textContent = msg;
+      if (el && !waSilencioso) el.textContent = msg;
       // Durante el envío, cada cliente procesado manda una línea con
       // "[2/40] ..." adelante: de ahí sale el % de la barra y el renglón
       // que se agrega a la lista en vivo.
@@ -733,6 +733,10 @@
   btnIniciar.addEventListener('click', async () => {
     if (btnIniciar.disabled) return;
     if (listoParaEnviar) { await enviarWhatsappReal(); return; }
+    // Mismo seguro que usa el chequeo automático de WhatsApp: que no se
+    // dispare solo mientras este flujo está corriendo (compiten por
+    // recursos y pisan el mismo cartel de texto).
+    waConectando = true;
     btnIniciar.disabled = true;
     steps.forEach(s => s.classList.remove('on'));
     track.style.width = '0%';
@@ -745,7 +749,9 @@
         carpetaTrabajo = r.carpeta;
       }
       const destino = (nombre) => carpetaTrabajo + '\\' + nombre;
+      const flowHint = document.getElementById('flowHint');
 
+      flowHint.textContent = 'Revisando rechazos…';
       const rechazos = await backend('detectar_rechazos', {
         mes_pasado: notificarTodos ? '' : workspace.mes_pasado,
         mes_actual: workspace.mes_actual,
@@ -753,6 +759,7 @@
         destino: destino('01_rechazos.xlsx'),
       });
       marcarPaso(0);
+      flowHint.textContent = `Rechazos detectados: ${rechazos.segundo_rechazo ?? ''}. Recortando cupones…`;
 
       // Los PDFs recortados van sueltos en la carpeta de trabajo (no en una
       // subcarpeta): al mandar por WhatsApp, el cupón de cada póliza se
@@ -764,6 +771,7 @@
       marcarPaso(1);
       animateCount(document.querySelector('[data-kpi="cupones"]'), cupones.cantidad);
       document.querySelector('[data-kpi-bar="cupones"]').style.width = '100%';
+      flowHint.textContent = `${cupones.cantidad} cupones recortados. Vinculando con cada cliente…`;
 
       const vinculado = await backend('vincular_cupones', {
         excel_rechazos: rechazos.archivo,
@@ -771,6 +779,7 @@
         destino: destino('02_vinculado.xlsx'),
       });
       marcarPaso(2);
+      flowHint.textContent = 'Buscando los teléfonos de cada cliente…';
 
       const final = await backend('cruzar_telefonos', {
         excel_vinculado: vinculado.archivo,
@@ -801,6 +810,7 @@
     } catch (e) {
       showToast('Se cortó el flujo: ' + e, true);
     } finally {
+      waConectando = false;
       btnIniciar.disabled = false;
     }
   });
@@ -857,6 +867,11 @@
 
   let waConectando = false;
   let waCancelado = false;
+  // El chequeo automático de WhatsApp (al abrir la app y cada 2 minutos) no
+  // debería interrumpir la vista: usa el mismo cartel de texto que "Iniciar
+  // flujo" para avisar en qué paso va, y lo pisaba sin que el usuario haya
+  // tocado nada.
+  let waSilencioso = false;
   document.getElementById('qrCerrar').addEventListener('click', async () => {
     waCancelado = true;
     document.getElementById('qrOverlay').hidden = true;
@@ -869,6 +884,7 @@
     // salta este turno en vez de competir con él.
     if (waConectando) return;
     waConectando = true;
+    waSilencioso = silencioso;
     const lbl = boton ? (boton.querySelector('.lbl') || boton) : null;
     const original = lbl ? lbl.textContent : '';
     if (boton) { boton.disabled = true; lbl.textContent = 'Conectando…'; }
@@ -884,6 +900,7 @@
       else if (!silencioso) showToast('No se pudo conectar: ' + e, true);
     } finally {
       waConectando = false;
+      waSilencioso = false;
       if (boton) {
         boton.disabled = false;
         lbl.textContent = original;

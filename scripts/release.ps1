@@ -1,4 +1,4 @@
-# Arma una release de AlDía: compila, firma, y deja listo el latest.json
+﻿# Arma una release de AlDía: compila, firma, y deja listo el latest.json
 # que necesita el updater. Después hay que subir a mano el instalador y
 # latest.json a una Release de GitHub (ver README.md).
 #
@@ -18,7 +18,7 @@ if (-not (Test-Path $keyPath)) {
     Write-Error "No encontré la clave privada en $keyPath. Sin ella no se pueden firmar actualizaciones."
 }
 
-$env:TAURI_SIGNING_PRIVATE_KEY_PATH = $keyPath
+$env:TAURI_SIGNING_PRIVATE_KEY = $keyPath
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
 
 $confPath = Join-Path $root "src-tauri\tauri.conf.json"
@@ -65,3 +65,4 @@ Write-Output "  2. Subi como adjuntos:"
 Write-Output "       - $($nsis.FullName)"
 Write-Output "       - $latestPath   (antes de subirlo, reemplazá 'url' por el link real del .exe ya subido)"
 Write-Output "  3. Listo: la próxima vez que alguien abra AlDía, le va a aparecer el cartel de actualizar."
+
