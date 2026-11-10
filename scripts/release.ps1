@@ -34,9 +34,12 @@ try {
 }
 
 $bundleDir = Join-Path $root "src-tauri\target\release\bundle"
-$nsis = Get-ChildItem (Join-Path $bundleDir "nsis") -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+# Filtrado por la versión exacta: la carpeta nsis/ acumula instaladores de
+# builds anteriores, y "el primero que encuentre" alguna vez agarró el
+# viejo — firmaba el .exe de ayer con el número de versión de hoy.
+$nsis = Get-ChildItem (Join-Path $bundleDir "nsis") -Filter "*_$version*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $nsis) {
-    Write-Error "No encontré el instalador NSIS en $bundleDir\nsis. ¿Falló el build?"
+    Write-Error "No encontré el instalador NSIS de la versión $version en $bundleDir\nsis. ¿Falló el build?"
 }
 $sigFile = "$($nsis.FullName).sig"
 if (-not (Test-Path $sigFile)) {
