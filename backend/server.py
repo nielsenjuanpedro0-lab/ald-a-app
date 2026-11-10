@@ -295,8 +295,17 @@ def cmd_imprimir_listado(args: dict) -> dict:
     depender de Qt: el backend corre sin interfaz, QPrintDialog no sirve)."""
     ruta = args["excel_path"]
     titulo = args.get("titulo") or "Listado"
-    df = pd.read_excel(ruta)
+    df = pd.read_excel(ruta, dtype=str)
     df.columns = df.columns.astype(str).str.strip()
+    df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
+
+    # Esto es para que alguien lo revise en papel: nombre, póliza y motivo
+    # de rechazo. Afuera lo que no aporta ahí (el link al PDF no sirve
+    # impreso, y CUIT/tarjeta/teléfono son de trabajo interno, no de
+    # repaso en papel).
+    excluir = ("cupon", "telefono", "cuit", "cuil", "tarjeta")
+    cols = [c for c in df.columns if not any(p in _normalizar(c) for p in excluir)]
+    df = df[cols]
 
     esc = lambda v: html.escape(str(v))
     encabezado = "".join(f"<th>{esc(c)}</th>" for c in df.columns)
@@ -352,34 +361,54 @@ def cmd_historial_listar(args: dict) -> dict:
 #  WhatsApp
 # ──────────────────────────────────────────────────────────────
 
+_sesion_wa: SesionWhatsApp | None = None
+_sesion_wa_lock = threading.Lock()
+
+
+def _obtener_sesion_whatsapp(perfil: str, timeout_login: float) -> SesionWhatsApp:
+    """Una sola sesión de WhatsApp Web para toda la vida del programa, en
+    vez de abrir y cerrar Chrome en cada conexión o envío — eso era lo que
+    hacía que cada acción tardara 10-30 segundos. Si la sesión se cae
+    (se cerró Chrome solo, se cayó internet) se nota con esta_viva() y se
+    abre una nueva."""
+    global _sesion_wa
+    with _sesion_wa_lock:
+        if _sesion_wa is not None and _sesion_wa.esta_viva():
+            return _sesion_wa
+        if _sesion_wa is not None:
+            _sesion_wa.cerrar()
+        _sesion_wa = SesionWhatsApp(perfil_dir=perfil, headless=True, log=_log_callback, on_qr=_qr_callback)
+        _sesion_wa.abrir(timeout_login=timeout_login)
+        return _sesion_wa
+
+
 def cmd_whatsapp_probar(args: dict) -> dict:
-    """Abre la sesión (reutiliza el login guardado; si no hay, abre el
-    navegador para escanear el QR) y la vuelve a cerrar. Sirve para
-    verificar que el envío va a andar, sin mandar nada todavía."""
+    """Conecta (o reusa la sesión ya abierta) y la deja viva para cuando
+    haga falta enviar de verdad. Sirve para verificar que el envío va a
+    andar, sin mandar nada todavía."""
     perfil = args.get("perfil_dir") or str(PERFIL_POR_DEFECTO)
     _emitir_evento("log", {"message": "Abriendo WhatsApp Web…"})
-    sesion = SesionWhatsApp(perfil_dir=perfil, headless=True, log=_log_callback, on_qr=_qr_callback)
     try:
-        sesion.abrir(timeout_login=args.get("timeout_login", 180))
+        _obtener_sesion_whatsapp(perfil, args.get("timeout_login", 180))
     finally:
-        sesion.cerrar()
         _qr_callback(None)
     return {"conectado": True}
 
 
 def cmd_whatsapp_enviar_todos(args: dict) -> dict:
     """El paso 5: manda el WhatsApp con el cupón adjunto a cada cliente del
-    Excel ya cruzado con teléfonos. Una sola sesión para todos los envíos."""
+    Excel ya cruzado con teléfonos. Reusa la sesión ya conectada en vez de
+    levantar un Chrome nuevo para el envío."""
+    perfil = args.get("perfil_dir") or str(PERFIL_POR_DEFECTO)
     try:
+        sesion = _obtener_sesion_whatsapp(perfil, args.get("timeout_login", 180))
         resumen = enviar_whatsapp_web(
             excel_entrada=args["excel_entrada"],
             log=_log_callback,
             telefono_por_defecto=args.get("telefono_por_defecto") or "+5492494585215",
             historial_file=args.get("historial_file") or None,
-            perfil_dir=args.get("perfil_dir") or str(PERFIL_POR_DEFECTO),
-            headless=True,
+            sesion=sesion,
             on_qr=_qr_callback,
-            timeout_login=args.get("timeout_login", 180),
             plantilla_mensaje=args.get("plantilla_mensaje") or None,
         )
     finally:

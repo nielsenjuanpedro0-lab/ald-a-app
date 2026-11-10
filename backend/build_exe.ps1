@@ -17,11 +17,13 @@
 # necesita un compilador de C — si ya instalaste Visual Studio Build Tools
 # para compilar el lado de Rust, Nuitka lo reusa solo.
 
+$driverPath = python -c "import playwright, os; print(os.path.join(os.path.dirname(playwright.__file__), 'driver'))"
+
 python -m nuitka --standalone --assume-yes-for-downloads `
   --output-dir=dist_nuitka `
   --include-package=core `
   --include-package=playwright `
   --include-package=pdfplumber `
-  --include-data-dir="$(python -c 'import playwright, os; print(os.path.join(os.path.dirname(playwright.__file__), "driver"))')=playwright/driver" `
+  --include-data-dir="$driverPath=playwright/driver" `
   --nofollow-import-to=matplotlib,PySide6,shiboken6,scipy,tkinter,PyQt5,PyQt6 `
   server.py

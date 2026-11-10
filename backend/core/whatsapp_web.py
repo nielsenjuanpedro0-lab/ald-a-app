@@ -85,7 +85,7 @@ def _normalizar(texto: str) -> str:
 class SesionWhatsApp:
     """Mantiene abierta una única pestaña de WhatsApp Web."""
 
-    def __init__(self, perfil_dir=None, headless=False, log=None, timeout_ms=20000, on_qr=None):
+    def __init__(self, perfil_dir=None, headless=False, log=None, timeout_ms=45000, on_qr=None):
         self.perfil_dir = Path(perfil_dir) if perfil_dir else PERFIL_POR_DEFECTO
         self.headless = headless
         self.log = log
@@ -226,6 +226,18 @@ class SesionWhatsApp:
                     cerrar()
             except Exception:
                 pass
+
+    def esta_viva(self) -> bool:
+        """Si el navegador se cerró solo, se colgó o se quedó sin internet,
+        cualquier operación tira — se usa para decidir si hay que abrir una
+        sesión nueva en vez de reusar esta."""
+        if not self.page:
+            return False
+        try:
+            self.page.evaluate("1")
+            return True
+        except Exception:
+            return False
 
     # ---------- helpers de selectores ----------
 
@@ -594,9 +606,15 @@ def enviar_whatsapp_web(
     plantilla_mensaje: str | None = None,
     check_cancel_cb=None,
     on_qr=None,
+    sesion: "SesionWhatsApp | None" = None,
     **_ignorados,
 ):
     """Manda los mensajes del Excel usando una sola sesión de WhatsApp Web.
+
+    Si se pasa `sesion` (ya abierta de antes), la reusa y no la cierra al
+    terminar — así no hay que volver a levantar Chrome en cada envío. Si no
+    se pasa ninguna, se comporta como siempre: abre una propia y la cierra
+    al final.
 
     Devuelve el mismo diccionario que el motor viejo, así la interfaz no cambia.
     """
@@ -634,9 +652,12 @@ def enviar_whatsapp_web(
         except Exception:
             pass
 
-    sesion = SesionWhatsApp(perfil_dir=perfil_dir, headless=headless, log=log, on_qr=on_qr)
+    sesion_propia = sesion is None
+    if sesion_propia:
+        sesion = SesionWhatsApp(perfil_dir=perfil_dir, headless=headless, log=log, on_qr=on_qr)
     try:
-        sesion.abrir(timeout_login=timeout_login)
+        if sesion_propia:
+            sesion.abrir(timeout_login=timeout_login)
 
         for idx, (_clave_vieja, filas) in enumerate(grupos, start=1):
             if check_cancel_cb:
@@ -758,7 +779,8 @@ def enviar_whatsapp_web(
                 anotar(f"ERROR: {e}")
                 emit(log, f"[{idx}/{len(grupos)}] ✗ {cliente}: {e}")
     finally:
-        sesion.cerrar()
+        if sesion_propia:
+            sesion.cerrar()
 
     if reporte_rows:
         try:
