@@ -13,6 +13,7 @@ Salida:  {"id": N, "ok": true, "data": ...}  o  {"id": N, "ok": false, "error": 
 """
 from __future__ import annotations
 
+import functools
 import html
 import json
 import os
@@ -49,6 +50,22 @@ from core.whatsapp_web import PERFIL_POR_DEFECTO, SesionWhatsApp, enviar_whatsap
 # Como varios hilos pueden escribir una línea a la vez, todas las salidas
 # por stdout pasan por este lock para que no se entrevere el JSON.
 _stdout_lock = threading.Lock()
+
+# pandas/pdfplumber (procesar Excel/PDF) y Playwright (WhatsApp) son pesados
+# de CPU/memoria cada uno por su cuenta. Antes podían correr al mismo tiempo
+# en hilos separados (ej. el chequeo de WhatsApp mientras se procesan
+# archivos) y en una PC floja eso se sentía como que todo se colgaba. Este
+# lock obliga a que solo una cosa pesada corra a la vez; lo liviano (ping,
+# cargar config, listar clientes) sigue sin esperar nada.
+_carga_pesada_lock = threading.Lock()
+
+
+def _pesado(func):
+    @functools.wraps(func)
+    def envoltorio(*args, **kwargs):
+        with _carga_pesada_lock:
+            return func(*args, **kwargs)
+    return envoltorio
 
 
 def _emitir_evento(tipo: str, datos: dict) -> None:
@@ -106,6 +123,7 @@ def cmd_check_files(args: dict) -> dict:
 #  Flujo: detectar -> fragmentar -> vincular -> cruzar teléfonos
 # ──────────────────────────────────────────────────────────────
 
+@_pesado
 def cmd_detectar_rechazos(args: dict) -> dict:
     mes_pasado = args.get("mes_pasado") or None
     incluir_todos = bool(args.get("incluir_todos"))
@@ -127,16 +145,19 @@ def cmd_detectar_rechazos(args: dict) -> dict:
     }
 
 
+@_pesado
 def cmd_fragmentar_pdfs(args: dict) -> dict:
     resumen = fragmentar_pdfs(args["carpeta_pdfs"], args["destino"])
     return {"carpeta": resumen["salida_dir"], "cantidad": resumen["generados"]}
 
 
+@_pesado
 def cmd_vincular_cupones(args: dict) -> dict:
     resumen = vincular_pdfs(args["excel_rechazos"], args["destino"], args["carpeta_cupones"])
     return {"archivo": resumen["salida"], "encontrados": resumen["encontrados"], "no_encontrados": resumen["no_encontrados"]}
 
 
+@_pesado
 def cmd_cruzar_telefonos(args: dict) -> dict:
     resumen = cruzar_telefonos(args["excel_vinculado"], args["base_clientes"], args["destino"])
     return {
@@ -382,6 +403,7 @@ def _obtener_sesion_whatsapp(perfil: str, timeout_login: float) -> SesionWhatsAp
         return _sesion_wa
 
 
+@_pesado
 def cmd_whatsapp_probar(args: dict) -> dict:
     """Conecta (o reusa la sesión ya abierta) y la deja viva para cuando
     haga falta enviar de verdad. Sirve para verificar que el envío va a
@@ -395,6 +417,7 @@ def cmd_whatsapp_probar(args: dict) -> dict:
     return {"conectado": True}
 
 
+@_pesado
 def cmd_whatsapp_enviar_todos(args: dict) -> dict:
     """El paso 5: manda el WhatsApp con el cupón adjunto a cada cliente del
     Excel ya cruzado con teléfonos. Reusa la sesión ya conectada en vez de

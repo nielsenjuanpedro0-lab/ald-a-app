@@ -911,12 +911,12 @@
   }
   document.getElementById('btnConectar').addEventListener('click', (ev) => conectarWhatsapp(ev.currentTarget));
 
-  // Al abrir la app, probar en silencio la sesión ya guardada (si existe)
-  // para no tener que tocar "Conectar WhatsApp" a mano cada vez. Y después,
-  // reconfirmar cada 2 minutos: si cierran la sesión desde el celular, que
-  // dejemos de mostrar "conectado" sin que haga falta reabrir la app.
-  conectarWhatsapp(null, true);
-  setInterval(() => conectarWhatsapp(null, true), 120000);
+  // A propósito NO se conecta solo al abrir ni cada tanto: eso dejaba un
+  // Chrome corriendo de fondo todo el tiempo que la app estuviera abierta,
+  // compitiendo por CPU/memoria justo con el procesamiento de archivos (que
+  // en una PC floja ya es pesado de por sí). Ahora WhatsApp se conecta
+  // recién cuando hace falta de verdad: al tocar "Conectar WhatsApp" o al
+  // llegar al paso de enviar.
 
   // ---- estado inicial: traer lo que ya estaba guardado de una sesión anterior ----
   (async () => {

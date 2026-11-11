@@ -127,7 +127,11 @@ def fragmentar_pdfs(carpeta: str, salida_dir: str | None = None, numeros_ignorar
                 
                 total += 1
                 outputs.append(str(out_file.resolve()))
-                emit(log, f"  ✓ Pág {i + 1} → {nombre_final}")
+                # Un emit() por página es una ida y vuelta entera entre
+                # procesos (Python -> Rust -> JS) por cada una; con 20-30
+                # páginas eso suma. Se avisa cada 5 en vez de todas.
+                if total % 5 == 0:
+                    emit(log, f"  ✓ {total} cupones recortados hasta ahora…")
             except Exception as page_err:
                 emit(log, f"  ❌ Error en Pág {i + 1}: {page_err}")
 
