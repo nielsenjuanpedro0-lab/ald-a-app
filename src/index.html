@@ -262,7 +262,7 @@
   .empty-row td{text-align:center;color:var(--slate);padding:36px 14px;}
   .preview-box{margin-top:14px;}
   .preview-box .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--slate);font-weight:700;margin-bottom:8px;}
-  .preview-msg{background:var(--wa-bubble,#DCF8C6);color:#0B2914;border-radius:12px 12px 12px 3px;padding:13px 14px;font-size:.86rem;line-height:1.5;max-width:70%;}
+  .preview-msg{background:var(--wa-bubble,#DCF8C6);color:#0B2914;border-radius:12px 12px 12px 3px;padding:13px 14px;font-size:.86rem;line-height:1.5;max-width:70%;white-space:pre-wrap;}
 
   /* ---------- update banner ---------- */
   .update-banner{
@@ -330,7 +330,7 @@
         <span class="wa-dot"></span>
         <span>
           <span class="t" style="display:block;">WhatsApp sin conectar</span>
-          <span class="s">Todavía no implementado</span>
+          <span class="s">Tocá "Conectar WhatsApp"</span>
         </span>
       </div>
       <button class="help-item">
@@ -482,9 +482,8 @@
             <div class="ctl">
               <div class="ctl-row">
                 <button class="btn btn-ghost" id="btnConectarCfg"><span class="lbl">Conectar WhatsApp</span></button>
-                <button class="btn btn-ghost" id="btnProbarCfg">Probar conexión</button>
               </div>
-              <div class="hint">1) Conectá WhatsApp la primera vez (escaneás el QR). 2) Probá la conexión para chequear que el envío va a andar. — Todavía no implementado en esta versión.</div>
+              <div class="hint">La primera vez hay que escanear el QR con el celular. Después queda guardado: se reconecta solo cuando hace falta, y se desconecta solo si pasan unos minutos sin usarse.</div>
             </div>
           </div>
         </div>
@@ -988,7 +987,6 @@
     showToast('Mensaje restablecido');
   });
   document.getElementById('btnConectarCfg').addEventListener('click', (ev) => conectarWhatsapp(ev.currentTarget));
-  document.getElementById('btnProbarCfg').addEventListener('click', (ev) => conectarWhatsapp(ev.currentTarget));
   document.getElementById('btnVerHistorialCfg').addEventListener('click', () => {
     document.querySelector('.side-item[data-panel="historial"]').click();
   });
