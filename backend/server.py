@@ -384,15 +384,44 @@ def cmd_historial_listar(args: dict) -> dict:
 
 _sesion_wa: SesionWhatsApp | None = None
 _sesion_wa_lock = threading.Lock()
+_sesion_wa_timer: threading.Timer | None = None
+
+# Gente de este rubro suele tener la PC con todo abierto (Chrome con un
+# montón de pestañas, Excel, etc.) — casi sin memoria libre. Dejar un Chrome
+# de WhatsApp prendido el resto de la sesión, aunque no se use más, puede
+# ser justo lo que la empuja a quedarse sin RAM (mucho peor que cualquier
+# lentitud de CPU: ahí empieza a usar el disco como memoria). Por eso la
+# sesión se cierra sola si pasan unos minutos sin que se la use, y se vuelve
+# a abrir (con el mismo costo de siempre, 10-30s) la próxima vez que haga
+# falta — mejor eso que tenerla viva todo el tiempo por las dudas.
+_SESION_WA_IDLE_SEGUNDOS = 180
+
+
+def _cerrar_sesion_wa_por_inactividad() -> None:
+    global _sesion_wa
+    with _sesion_wa_lock:
+        if _sesion_wa is not None:
+            _sesion_wa.cerrar()
+            _sesion_wa = None
+
+
+def _reprogramar_cierre_por_inactividad() -> None:
+    global _sesion_wa_timer
+    if _sesion_wa_timer is not None:
+        _sesion_wa_timer.cancel()
+    _sesion_wa_timer = threading.Timer(_SESION_WA_IDLE_SEGUNDOS, _cerrar_sesion_wa_por_inactividad)
+    _sesion_wa_timer.daemon = True
+    _sesion_wa_timer.start()
 
 
 def _obtener_sesion_whatsapp(perfil: str, timeout_login: float) -> SesionWhatsApp:
-    """Una sola sesión de WhatsApp Web para toda la vida del programa, en
-    vez de abrir y cerrar Chrome en cada conexión o envío — eso era lo que
-    hacía que cada acción tardara 10-30 segundos. Si la sesión se cae
-    (se cerró Chrome solo, se cayó internet) se nota con esta_viva() y se
-    abre una nueva."""
+    """Reusa la sesión de WhatsApp Web si ya está abierta y viva (así no hay
+    que levantar Chrome de nuevo en cada acción), pero no la deja prendida
+    para siempre — ver _SESION_WA_IDLE_SEGUNDOS. Si se cae sola (se cerró
+    Chrome, se cayó internet) se nota con esta_viva() y se abre una nueva."""
     global _sesion_wa
+    if _sesion_wa_timer is not None:
+        _sesion_wa_timer.cancel()
     with _sesion_wa_lock:
         if _sesion_wa is not None and _sesion_wa.esta_viva():
             return _sesion_wa
@@ -414,6 +443,7 @@ def cmd_whatsapp_probar(args: dict) -> dict:
         _obtener_sesion_whatsapp(perfil, args.get("timeout_login", 180))
     finally:
         _qr_callback(None)
+        _reprogramar_cierre_por_inactividad()
     return {"conectado": True}
 
 
@@ -436,6 +466,7 @@ def cmd_whatsapp_enviar_todos(args: dict) -> dict:
         )
     finally:
         _qr_callback(None)
+        _reprogramar_cierre_por_inactividad()
     return resumen
 
 
