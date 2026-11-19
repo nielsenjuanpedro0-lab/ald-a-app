@@ -42,6 +42,7 @@ impl Backend {
 // destino tenga Python ni pandas/playwright instalados, así que ahí se usa
 // el backend ya congelado con PyInstaller (ver backend/build_exe.ps1):
 // un .exe propio que no depende de nada afuera.
+#[allow(dead_code)] // DevScript solo se construye en builds de desarrollo
 enum BackendKind {
     DevScript(std::path::PathBuf),
     PackagedExe(std::path::PathBuf),
@@ -51,14 +52,28 @@ fn backend_target(app: &tauri::AppHandle) -> Result<BackendKind, String> {
     // `cargo run` siempre arranca con CARGO_MANIFEST_DIR apuntando a
     // src-tauri/, así que el backend está siempre un nivel arriba, sin
     // importar desde dónde se haya lanzado el proceso.
-    let dev_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../backend/server.py");
-    if dev_path.exists() {
-        return Ok(BackendKind::DevScript(dev_path));
+    //
+    // Solo en builds de desarrollo: CARGO_MANIFEST_DIR queda grabado como
+    // ruta absoluta en el binario, y en la máquina donde se compiló el
+    // release esa ruta existe — sin este cfg, el .app/.exe instalado ahí
+    // corría el server.py suelto (con el Python del sistema) en vez del
+    // backend empaquetado.
+    #[cfg(debug_assertions)]
+    {
+        let dev_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../backend/server.py");
+        if dev_path.exists() {
+            return Ok(BackendKind::DevScript(dev_path));
+        }
     }
-    // Empaquetado: el instalador deja backend/server.exe al lado del
-    // ejecutable (ver tauri.conf.json -> bundle.resources).
+    // Empaquetado: el instalador deja el backend compilado con Nuitka en la
+    // carpeta de recursos (ver tauri.conf.json -> bundle.resources). Nuitka
+    // lo llama server.exe en Windows y server.bin en macOS/Linux.
+    #[cfg(windows)]
+    const BACKEND_BIN: &str = "backend/server.exe";
+    #[cfg(not(windows))]
+    const BACKEND_BIN: &str = "backend/server.bin";
     app.path()
-        .resolve("backend/server.exe", tauri::path::BaseDirectory::Resource)
+        .resolve(BACKEND_BIN, tauri::path::BaseDirectory::Resource)
         .map(BackendKind::PackagedExe)
         .map_err(|e| e.to_string())
 }
@@ -66,13 +81,25 @@ fn backend_target(app: &tauri::AppHandle) -> Result<BackendKind, String> {
 #[tauri::command]
 fn backend_start(app: tauri::AppHandle, state: State<Backend>) -> Result<(), String> {
     let mut child_lock = state.child.lock().map_err(|e| e.to_string())?;
-    if child_lock.is_some() {
-        return Ok(()); // ya está arriba
+    if let Some(child) = child_lock.as_mut() {
+        // Si el proceso Python murió (crash, lo cerró el sistema, etc.), se
+        // descarta y se levanta uno nuevo. Antes quedaba el Child muerto
+        // guardado y todos los pedidos siguientes fallaban con "Broken pipe"
+        // hasta reiniciar la app.
+        match child.try_wait() {
+            Ok(None) => return Ok(()), // ya está arriba
+            _ => {
+                *child_lock = None;
+                *state.stdin.lock().map_err(|e| e.to_string())? = None;
+            }
+        }
     }
 
     let mut cmd = match backend_target(&app)? {
         BackendKind::DevScript(script) => {
-            let mut c = Command::new("python");
+            // En macOS/Linux el comando "python" suele no existir (o ser
+            // Python 2); el de siempre ahí es "python3".
+            let mut c = Command::new(if cfg!(windows) { "python" } else { "python3" });
             c.arg(script);
             c
         }
@@ -128,7 +155,10 @@ fn backend_start(app: tauri::AppHandle, state: State<Backend>) -> Result<(), Str
 }
 
 #[tauri::command]
-async fn backend_call(state: State<'_, Backend>, cmd: String, args: Value) -> Result<Value, String> {
+async fn backend_call(app: tauri::AppHandle, state: State<'_, Backend>, cmd: String, args: Value) -> Result<Value, String> {
+    // No-op si el backend está vivo; si se había caído, lo vuelve a levantar.
+    backend_start(app, state.clone())?;
+
     let id = {
         let mut n = state.next_id.lock().map_err(|e| e.to_string())?;
         *n += 1;

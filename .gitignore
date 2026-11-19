@@ -42,3 +42,6 @@ latest.json
 *.sw?
 04_enviados.json
 errores_screenshot/
+
+# Entorno Python local para compilar el backend en macOS
+.venv-mac/
