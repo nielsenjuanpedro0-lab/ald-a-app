@@ -42,6 +42,7 @@ from core.utils import find_column  # noqa: E402
 from core.simulador import DEFAULT_PLANTILLA_MENSAJE, simular_agrupacion  # noqa: E402
 from core.telefonos import cruzar_telefonos  # noqa: E402
 from core.whatsapp_web import PERFIL_POR_DEFECTO, SesionWhatsApp, enviar_whatsapp_web  # noqa: E402
+from core import ov_smg  # noqa: E402
 
 
 # Cada pedido se procesa en su propio hilo (ver main()): sin esto, un
@@ -470,6 +471,41 @@ def cmd_whatsapp_enviar_todos(args: dict) -> dict:
     return resumen
 
 
+# ──────────────────────────────────────────────────────────────
+#  Oficina Virtual SMG: bajar rechazos y cuponeras (ver core/ov_smg.py)
+# ──────────────────────────────────────────────────────────────
+
+def _ov_log(mensaje: str) -> None:
+    _emitir_evento("ov_log", {"message": mensaje})
+
+
+def cmd_ov_conectar(args: dict) -> dict:
+    # Sin _pesado a propósito: puede quedar minutos esperando que la persona
+    # resuelva el captcha, y mientras tanto el resto de la app tiene que andar.
+    # La contraseña no se guarda: solo pasa al formulario de login.
+    usuario = (args.get("usuario") or "").strip()
+    save_config({"ov_usuario": usuario})
+    return ov_smg.conectar(usuario, args.get("password") or "", _ov_log,
+                           timeout_login=float(args.get("timeout_login", 180)))
+
+
+def cmd_ov_buscar(args: dict) -> dict:
+    agentes = [str(a) for a in args.get("agentes") or []]
+    save_config({"ov_agentes": agentes})
+    return ov_smg.buscar(agentes, _ov_log)
+
+
+@_pesado
+def cmd_ov_descargar(args: dict) -> dict:
+    carpeta = args.get("carpeta_trabajo") or str(_carpeta_trabajo_por_defecto())
+    resultado = ov_smg.descargar([str(a) for a in args.get("agentes") or []],
+                                 list(args.get("tandas") or []), carpeta, _ov_log,
+                                 incluir_mes_pasado=bool(args.get("incluir_mes_pasado", True)))
+    # Quedan cargados como si se hubieran elegido a mano en las tarjetas.
+    save_config({k: resultado[k] for k in ("mes_actual", "mes_pasado", "carpeta_pdfs")})
+    return resultado
+
+
 HANDLERS = {
     "ping": lambda args: {"pong": True},
     "load_config": lambda args: load_config(),
@@ -490,6 +526,10 @@ HANDLERS = {
     "whatsapp_probar": cmd_whatsapp_probar,
     "whatsapp_enviar_todos": cmd_whatsapp_enviar_todos,
     "plantilla_default": lambda args: {"plantilla": DEFAULT_PLANTILLA_MENSAJE},
+    "ov_conectar": cmd_ov_conectar,
+    "ov_buscar": cmd_ov_buscar,
+    "ov_descargar": cmd_ov_descargar,
+    "ov_desconectar": lambda args: ov_smg.desconectar(),
 }
 
 

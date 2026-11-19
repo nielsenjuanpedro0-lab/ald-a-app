@@ -236,6 +236,14 @@
   .btn-small:hover{background:var(--cream-3);}
 
   /* ---------- tablas (Lista de clientes / Historial) ---------- */
+  .ov-lista{max-height:44vh;overflow:auto;border:1px solid var(--border);border-radius:12px;padding:4px 12px;}
+  .ov-grupo{display:flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;color:var(--teal-ink);padding:10px 0 4px;border-top:1px solid var(--border);}
+  .ov-grupo:first-child{border-top:none;}
+  .ov-item{display:flex;align-items:center;gap:8px;padding:5px 0 5px 18px;font-size:.84rem;color:var(--ink);cursor:pointer;}
+  .ov-item.tanda{padding-left:0;border-top:1px solid var(--border);padding:9px 0;}
+  .ov-item.tanda:first-child{border-top:none;}
+  .ov-item .sub{margin-left:auto;font-size:.74rem;color:var(--slate);text-align:right;}
+  .ov-vacio{font-size:.82rem;color:var(--slate);padding:14px 0;}
   .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
   .toolbar .search{margin-left:auto;min-width:220px;}
   .pill-toggle{background:var(--cream-2);color:var(--ink);border-radius:999px;font-size:.82rem;font-weight:600;padding:9px 16px;}
@@ -311,6 +319,10 @@
       <button class="side-item active" data-panel="inicio">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11.5L12 4l8 7.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Inicio
+      </button>
+      <button class="side-item" data-panel="ov">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11" stroke-linecap="round"/><path d="M7.5 10.5L12 15l4.5-4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke-linecap="round"/></svg>
+        Oficina Virtual
       </button>
       <button class="side-item" data-panel="config">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M3 12h2.4M18.6 12H21M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" stroke-linecap="round"/></svg>
@@ -398,6 +410,10 @@
               <div class="hint" id="flowHint">Cargá los 4 archivos para habilitar el inicio.</div>
             </div>
             <div class="cta-row">
+              <button class="btn btn-ghost" id="btnIrOv">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11" stroke-linecap="round"/><path d="M7.5 10.5L12 15l4.5-4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke-linecap="round"/></svg>
+                Bajar de la OV
+              </button>
               <button class="btn btn-ghost" id="btnConectar" data-wa-label>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16a1 1 0 011 1v10a1 1 0 01-1 1H9l-4 4v-4H4a1 1 0 01-1-1V6a1 1 0 011-1z" stroke-linejoin="round"/></svg>
                 <span class="lbl">Conectar WhatsApp</span>
@@ -437,6 +453,48 @@
             <div class="l">WhatsApp enviados</div>
             <div class="bar"><i data-kpi-bar="enviados"></i></div>
           </div>
+        </div>
+      </section>
+
+      <section class="panel stagger" id="panel-ov" style="display:none;">
+        <div class="card settings-card">
+          <h3>Cuenta de la Oficina Virtual</h3>
+          <div class="settings-row">
+            <span class="lbl">Usuario y contraseña</span>
+            <div class="ctl">
+              <div class="ctl-row">
+                <input class="input" id="ovUsuario" placeholder="Usuario de la OV" autocomplete="username">
+                <input class="input" id="ovPassword" type="password" placeholder="Contraseña" autocomplete="current-password">
+                <button class="btn btn-teal" id="btnOvConectar">Conectar</button>
+              </div>
+              <div class="hint" id="ovEstado">Se abre una ventana de la Oficina Virtual con tus datos ya cargados: si aparece el captcha, resolvelo y tocá Ingresar. Cada usuario ve solo sus productores. La contraseña no se guarda.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card settings-card" id="ovCardProductores" hidden>
+          <h3>Productores</h3>
+          <div class="toolbar">
+            <button class="btn-small" id="btnOvProdTodos">Todos</button>
+            <button class="btn-small" id="btnOvProdNinguno">Ninguno</button>
+            <span class="hint" id="ovCuentaProd" style="margin:0;"></span>
+            <input class="input search" id="ovBuscarProd" placeholder="Buscar productor, código u organizador…">
+          </div>
+          <div class="ov-lista" id="ovProductores"></div>
+          <div class="ctl-row" style="margin-top:14px;">
+            <button class="btn btn-teal" id="btnOvBuscar">Buscar tandas de rechazos <span class="seta">→</span></button>
+          </div>
+        </div>
+
+        <div class="card settings-card" id="ovCardTandas" hidden>
+          <h3>Tandas de rechazos</h3>
+          <div class="toolbar" id="ovFiltros"></div>
+          <div class="ov-lista" id="ovTandas"></div>
+          <div class="ctl-row" style="margin-top:14px;">
+            <button class="btn btn-teal" id="btnOvDescargar" disabled>Descargar y cargar en Inicio <span class="seta">→</span></button>
+            <span class="hint" id="ovResumenSel" style="margin:0;"></span>
+          </div>
+          <div class="hint" style="margin-top:10px;">Para detectar a los que vienen rechazados por segunda vez, cada tanda se compara con la tanda anterior del mismo medio (por ejemplo CBU 28/10 contra CBU 13/10). Si elegís varias del mismo medio, se comparan contra la anterior a la más vieja.</div>
         </div>
       </section>
 
@@ -556,8 +614,9 @@
   // ---- sidebar nav ----
   const items = [...document.querySelectorAll('.side-item')];
   const pill = document.getElementById('sidePill');
-  const panels = { inicio:'panel-inicio', config:'panel-config', clientes:'panel-clientes', historial:'panel-historial' };
+  const panels = { inicio:'panel-inicio', ov:'panel-ov', config:'panel-config', clientes:'panel-clientes', historial:'panel-historial' };
   const titles = { inicio:['Inicio','Noviembre 2026 · 4 cupones rechazados detectados'],
+                   ov:['Oficina Virtual','Bajar los rechazos y cuponeras de SMG sin entrar a la página'],
                    config:['Configuración','WhatsApp, teléfono de respaldo y mensaje'],
                    clientes:['Lista de clientes','Quién recibe el aviso, con su cupón'],
                    historial:['Historial','Envíos de meses anteriores'] };
@@ -579,6 +638,7 @@
     if (key === 'clientes') cargarClientes();
     else if (key === 'historial') cargarHistorial();
     else if (key === 'config') cargarConfiguracion();
+    else if (key === 'ov') cargarOv();
   }));
   sizePill(); placePill(items[0]);
 
@@ -629,6 +689,9 @@
           log.scrollTop = log.scrollHeight;
         }
       }
+    } else if (payload.event === 'ov_log') {
+      const el = document.getElementById('ovEstado');
+      if (el) el.textContent = payload.data?.message || '';
     } else if (payload.event === 'qr') {
       const overlay = document.getElementById('qrOverlay');
       const img = document.getElementById('qrImg');
@@ -749,7 +812,9 @@
         const r = await backend('workspace_dir');
         carpetaTrabajo = r.carpeta;
       }
-      const destino = (nombre) => carpetaTrabajo + '\\' + nombre;
+      // "/" sirve en Windows y en macOS; "\\" en macOS no es separador y los
+      // archivos terminaban sueltos en la carpeta de arriba.
+      const destino = (nombre) => carpetaTrabajo + '/' + nombre;
       const flowHint = document.getElementById('flowHint');
 
       flowHint.textContent = 'Revisando rechazos…';
@@ -940,6 +1005,234 @@
       showToast('No pude conectar con el backend Python: ' + e, true);
     }
   })();
+
+  // ---- Oficina Virtual: bajar rechazos y cuponeras de SMG ----
+  const ov = { productores: [], seleccion: new Set(), tandas: [], tandasSel: new Set(), conectado: false };
+  const elOv = (id) => document.getElementById(id);
+
+  function fmtFecha(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+
+
+  async function cargarOv() {
+    try {
+      const cfg = await backend('load_config');
+      if (cfg.ov_usuario && !elOv('ovUsuario').value) elOv('ovUsuario').value = cfg.ov_usuario;
+      if (!ov.conectado && Array.isArray(cfg.ov_agentes)) ov.seleccion = new Set(cfg.ov_agentes.map(String));
+    } catch (e) { /* sin config previa: nada que completar */ }
+  }
+
+  function check(texto, marcado, onChange, clase = 'ov-item') {
+    const label = document.createElement('label');
+    label.className = clase;
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = marcado;
+    chk.addEventListener('change', () => onChange(chk.checked));
+    label.append(chk, document.createTextNode(' ' + texto));
+    return label;
+  }
+
+  function renderProductores() {
+    const q = elOv('ovBuscarProd').value.trim().toLowerCase();
+    const grupos = new Map();
+    for (const p of ov.productores) {
+      if (q && !`${p.codigo} ${p.nombre} ${p.organizador}`.toLowerCase().includes(q)) continue;
+      const g = p.organizador || 'Sin organizador';
+      if (!grupos.has(g)) grupos.set(g, []);
+      grupos.get(g).push(p);
+    }
+    const cont = elOv('ovProductores');
+    cont.innerHTML = '';
+    if (!grupos.size) {
+      const v = document.createElement('div');
+      v.className = 'ov-vacio';
+      v.textContent = ov.productores.length ? 'Ningún productor coincide con la búsqueda.' : 'Este usuario no tiene productores asignados.';
+      cont.append(v);
+    }
+    for (const [g, lista] of grupos) {
+      const todos = lista.every(p => ov.seleccion.has(p.codigo));
+      cont.append(check(`${g} (${lista.length})`, todos, (on) => {
+        lista.forEach(p => on ? ov.seleccion.add(p.codigo) : ov.seleccion.delete(p.codigo));
+        renderProductores();
+      }, 'ov-grupo'));
+      for (const p of lista) {
+        cont.append(check(`${p.codigo} — ${p.nombre}`, ov.seleccion.has(p.codigo), (on) => {
+          on ? ov.seleccion.add(p.codigo) : ov.seleccion.delete(p.codigo);
+          actualizarCuentaProd();
+        }));
+      }
+    }
+    actualizarCuentaProd();
+  }
+
+  function actualizarCuentaProd() {
+    elOv('ovCuentaProd').textContent = `${ov.seleccion.size} de ${ov.productores.length} elegidos`;
+    elOv('btnOvBuscar').disabled = ov.seleccion.size === 0;
+  }
+
+  elOv('ovBuscarProd').addEventListener('input', renderProductores);
+  elOv('btnOvProdTodos').addEventListener('click', () => { ov.productores.forEach(p => ov.seleccion.add(p.codigo)); renderProductores(); });
+  elOv('btnOvProdNinguno').addEventListener('click', () => { ov.seleccion.clear(); renderProductores(); });
+
+  elOv('btnOvConectar').addEventListener('click', async () => {
+    const usuario = elOv('ovUsuario').value.trim();
+    const password = elOv('ovPassword').value;
+    if (!usuario) { showToast('Poné el usuario de la Oficina Virtual.', true); return; }
+    const btn = elOv('btnOvConectar');
+    btn.disabled = true; btn.textContent = 'Conectando…';
+    elOv('ovEstado').textContent = 'Abriendo la Oficina Virtual…';
+    try {
+      const r = await backend('ov_conectar', { usuario, password });
+      elOv('ovPassword').value = '';
+      ov.conectado = true;
+      elOv('ovEstado').textContent = `Conectado como ${r.usuario}. Podés minimizar la ventana de la OV, pero no la cierres mientras bajás archivos.`;
+      ov.productores = r.productores || [];
+      const codigos = new Set(ov.productores.map(p => p.codigo));
+      ov.seleccion = new Set([...ov.seleccion].filter(c => codigos.has(c)));
+      if (ov.productores.length === 1) ov.seleccion.add(ov.productores[0].codigo);
+      ov.tandas = []; ov.tandasSel.clear();
+      elOv('ovCardTandas').hidden = true;
+      elOv('ovCardProductores').hidden = false;
+      renderProductores();
+      showToast(`Conectado a la OV: ${ov.productores.length} productores disponibles.`);
+    } catch (e) {
+      elOv('ovEstado').textContent = 'No se pudo conectar: ' + e;
+      showToast('No se pudo conectar a la OV: ' + e, true);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Conectar';
+    }
+  });
+
+  // Cada tanda se compara con la tanda INMEDIATAMENTE ANTERIOR del mismo
+  // medio (la calcula el backend por productor). Si se eligen varias del
+  // mismo medio, se compara con la anterior a la más vieja.
+  function renderTandas() {
+    const filtros = elOv('ovFiltros');
+    filtros.innerHTML = '';
+    const boton = (texto, accion) => {
+      const b = document.createElement('button');
+      b.className = 'btn-small';
+      b.textContent = texto;
+      b.addEventListener('click', () => { accion(); renderTandas(); });
+      filtros.append(b);
+    };
+    const medios = [...new Set(ov.tandas.map(t => t.medio))].sort();
+    // ov.tandas viene de más nueva a más vieja: la primera de cada medio es la última.
+    const ultima = (m) => ov.tandas.find(t => t.medio === m);
+    boton('Últimas de cada medio', () => { ov.tandasSel = new Set(medios.map(m => ultima(m).clave)); });
+    for (const m of medios) boton(`Última ${m}`, () => { ov.tandasSel = new Set([ultima(m).clave]); });
+    boton('Ninguna', () => ov.tandasSel.clear());
+
+    const cont = elOv('ovTandas');
+    cont.innerHTML = '';
+    if (!ov.tandas.length) {
+      const v = document.createElement('div');
+      v.className = 'ov-vacio';
+      v.textContent = 'No hay tandas de rechazos publicadas para esos productores en los últimos meses.';
+      cont.append(v);
+    }
+    for (const t of ov.tandas) {
+      const fila = check(`${t.medio} · ${fmtFecha(t.fecha)}`, ov.tandasSel.has(t.clave), (on) => {
+        on ? ov.tandasSel.add(t.clave) : ov.tandasSel.delete(t.clave);
+        actualizarResumenTandas();
+      }, 'ov-item tanda');
+      const sub = document.createElement('span');
+      sub.className = 'sub';
+      const comp = (t.anteriores || []).length
+        ? `compara con ${t.anteriores.map(f => fmtFecha(f).slice(0, 5)).join(' / ')}`
+        : 'sin tanda anterior';
+      sub.textContent = `${t.productores} productor${t.productores === 1 ? '' : 'es'} · ${t.cuponeras} cuponera${t.cuponeras === 1 ? '' : 's'} · publicada ${t.publicado} · ${comp}`;
+      fila.append(sub);
+      cont.append(fila);
+    }
+    actualizarResumenTandas();
+  }
+
+  function actualizarResumenTandas() {
+    const n = ov.tandasSel.size;
+    elOv('btnOvDescargar').disabled = n === 0;
+    if (!n) { elOv('ovResumenSel').textContent = ''; return; }
+    // Por medio: la más vieja elegida manda (sus "anteriores").
+    const masVieja = new Map();
+    for (const t of ov.tandas.filter(t => ov.tandasSel.has(t.clave))) {
+      const v = masVieja.get(t.medio);
+      if (!v || t.fecha < v.fecha) masVieja.set(t.medio, t);
+    }
+    const contra = [];
+    for (const [m, t] of [...masVieja].sort()) {
+      for (const f of (t.anteriores || [])) contra.push(`${m} ${fmtFecha(f).slice(0, 5)}`);
+    }
+    elOv('ovResumenSel').textContent = `${n} tanda${n === 1 ? '' : 's'} · ` + (contra.length
+      ? `compara con: ${contra.join(', ')}`
+      : 'sin tanda anterior para comparar');
+  }
+
+  elOv('btnOvBuscar').addEventListener('click', async () => {
+    const btn = elOv('btnOvBuscar');
+    btn.disabled = true;
+    try {
+      const r = await backend('ov_buscar', { agentes: [...ov.seleccion] });
+      ov.tandas = r.tandas || [];
+      const claves = new Set(ov.tandas.map(t => t.clave));
+      ov.tandasSel = new Set([...ov.tandasSel].filter(k => claves.has(k)));
+      elOv('ovCardTandas').hidden = false;
+      renderTandas();
+      elOv('ovCardTandas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      showToast('No se pudieron buscar las tandas: ' + e, true);
+    } finally {
+      btn.disabled = ov.seleccion.size === 0;
+    }
+  });
+
+  elOv('btnOvDescargar').addEventListener('click', async () => {
+    const btn = elOv('btnOvDescargar');
+    btn.disabled = true;
+    try {
+      const r = await backend('ov_descargar', { agentes: [...ov.seleccion], tandas: [...ov.tandasSel], incluir_mes_pasado: !notificarTodos });
+      workspace.mes_actual = r.mes_actual || '';
+      workspace.mes_pasado = r.mes_pasado || '';
+      workspace.carpeta_pdfs = r.carpeta_pdfs || '';
+      await repintarTarjetas();
+      // Archivos nuevos = flujo nuevo: si había algo listo para enviar de
+      // una corrida anterior, ya no corresponde a estos archivos.
+      listoParaEnviar = false;
+      btnIniciar.innerHTML = 'Iniciar flujo <span class="seta">→</span>';
+      const c = r.cantidades || {};
+      let msg = `Bajados: ${c.mes_actual || 0} listados de rechazos, ${c.mes_pasado || 0} de la tanda anterior y ${c.cuponeras || 0} cuponeras.`;
+      if (r.fallidos && r.fallidos.length) msg += ` La OV no entregó ${r.fallidos.length} archivo${r.fallidos.length === 1 ? '' : 's'}: ${r.fallidos.join(', ')}.`;
+      if (!r.mes_pasado && !notificarTodos) msg += ' No hubo tanda anterior para comparar: cargá el mes pasado a mano o elegí "Todos los rechazos del mes" en Configuración.';
+      showToast(msg, (!r.mes_pasado && !notificarTodos) || (r.fallidos && r.fallidos.length > 0));
+      document.querySelector('.side-item[data-panel="inicio"]').click();
+    } catch (e) {
+      showToast('No se pudo descargar: ' + e, true);
+    } finally {
+      actualizarResumenTandas();
+    }
+  });
+
+  elOv('btnIrOv').addEventListener('click', () => document.querySelector('.side-item[data-panel="ov"]').click());
+
+  async function repintarTarjetas() {
+    const estado = await backend('check_files', workspace);
+    fileCards.forEach(card => {
+      const info = estado[card.dataset.key];
+      if (info && info.cargado) {
+        pintarTarjeta(card, info.cantidad > 1 ? `${info.cantidad} PDFs seleccionados` : info.nombre);
+      } else {
+        card.classList.remove('done');
+        const st = card.querySelector('.st');
+        st.classList.remove('real');
+        st.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Cargar archivo';
+      }
+    });
+    checkReady();
+  }
 
   // ---- Configuración ----
   function cargarConfiguracion() {
