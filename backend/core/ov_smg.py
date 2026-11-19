@@ -522,12 +522,19 @@ def _listar(t: _TrabajadorOV, agentes: list[str], desde: date, log) -> list[Arch
         mas_viejo = None
         for f in filas:
             a = parsear_fila(f)
-            if a:
-                archivos.append(a)
             try:
-                mas_viejo = datetime.strptime(f["cell"][1].strip(), "%d/%m/%Y").date()
+                publicado = datetime.strptime(f["cell"][1].strip(), "%d/%m/%Y").date()
             except Exception:
-                pass
+                publicado = None
+            if publicado:
+                mas_viejo = publicado
+            # Esta página trae 500 archivos de golpe: la última que se pide
+            # casi siempre se pasa del corte "desde" con archivos de hace
+            # años (con nombres viejos, tipo "Rechazos de CBU" en vez de
+            # "Rechazos CBU" — sin este filtro terminaban mezclados con los
+            # recientes y aparecían como si fueran otro medio distinto).
+            if a and (publicado is None or publicado >= desde):
+                archivos.append(a)
         total_paginas = int(datos.get("total") or 1)
         log(f"Buscando archivos en la OV… ({len(archivos)} revisados)")
         # Vienen ordenados por fecha de publicación, de nuevo a viejo: cuando

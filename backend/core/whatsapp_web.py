@@ -191,10 +191,13 @@ class SesionWhatsApp:
         vio_qr = False
         avisado_sync = False
         while time.time() < limite:
-            if self._existe("lista_chats", timeout=2000):
+            # Esto es solo la cadencia de detección (¿ya cargó el QR o la
+            # lista de chats?), no tiene nada que ver con el anti-baneo:
+            # cuanto más rápido se detecta, más rápido se ve el QR en pantalla.
+            if self._existe("lista_chats", timeout=600):
                 emit(self.log, "✓ Sesión de WhatsApp lista.")
                 return
-            hay_qr = self._existe("qr", timeout=1000)
+            hay_qr = self._existe("qr", timeout=400)
             if hay_qr:
                 if not vio_qr:
                     emit(self.log, "⚠ Escaneá el código QR con el celular. Lo mostramos en la app.")
@@ -211,7 +214,7 @@ class SesionWhatsApp:
                     self.on_qr(None)
                 emit(self.log, "✓ QR escaneado. Sincronizando WhatsApp "
                                 "(puede tardar varios minutos la primera vez, es normal)...")
-            time.sleep(2)
+            time.sleep(0.3)
         if self.on_qr:
             self.on_qr(None)
         raise TimeoutError(
@@ -286,14 +289,18 @@ class SesionWhatsApp:
             self.page.keyboard.press("ControlOrMeta+A")
             self.page.keyboard.press("Backspace")
             buscador.type(digitos, delay=20)
-            self.page.wait_for_timeout(1800)
+            # Nada de anti-baneo acá: este margen es para que WhatsApp
+            # termine de filtrar el resultado antes de leerlo (si no, se
+            # puede agarrar el resultado de la búsqueda anterior todavía en
+            # pantalla). Se achicó de 1800 a 500ms, no se sacó del todo.
+            self.page.wait_for_timeout(500)
 
             resultado = self._loc("resultado_busqueda", timeout=3000)
             if resultado is None:
                 self.page.keyboard.press("Escape")
                 return False
             resultado.click()
-            self.page.wait_for_timeout(600)
+            self.page.wait_for_timeout(200)
             listo = self._loc("composer", timeout=6000) is not None
             if not listo:
                 self.page.keyboard.press("Escape")
@@ -316,12 +323,14 @@ class SesionWhatsApp:
         except Exception:
             return "NO_ENCONTRADO"
         # Esperar a que cargue el cuadro de mensaje o el cartel de error
-        for _ in range(int(timeout_chat / 2)):
-            if self._loc("composer", timeout=2000) is not None:
+        # (presupuesto total parecido al de antes, solo que revisando más
+        # seguido: se nota apenas carga, en vez de a los saltos de antes).
+        for _ in range(int(timeout_chat * 2)):
+            if self._loc("composer", timeout=300) is not None:
                 return "OK"
             if self._hay_cartel_numero_invalido():
                 return "INVALIDO"
-            self.page.wait_for_timeout(500)
+            self.page.wait_for_timeout(200)
         return "INVALIDO" if self._hay_cartel_numero_invalido() else "NO_ENCONTRADO"
 
     # ---------- enviar ----------
@@ -436,13 +445,13 @@ class SesionWhatsApp:
                 clip.click()
             except Exception:
                 return False
-            self.page.wait_for_timeout(900)
+            self.page.wait_for_timeout(350)
 
         opcion = self._loc("opcion_documento", timeout=4000)
         if opcion is not None:
             try:
                 opcion.click()
-                self.page.wait_for_timeout(700)
+                self.page.wait_for_timeout(300)
                 return True
             except Exception:
                 pass
@@ -452,7 +461,7 @@ class SesionWhatsApp:
         if etiqueta is None:
             return False
         emit(self.log, f"(menú en otro idioma: usé la opción '{etiqueta}')")
-        self.page.wait_for_timeout(700)
+        self.page.wait_for_timeout(300)
         return True
 
     def _click_enviar(self) -> bool:
@@ -496,12 +505,12 @@ class SesionWhatsApp:
         antes = self._contar_filas(frag)
         composer.click()
         self._escribir_multilinea(composer, texto)
-        self.page.wait_for_timeout(300)
+        self.page.wait_for_timeout(150)
         self.page.keyboard.press("Enter")
         # Enviado = apareció en el chat una fila más con este mismo texto.
-        pasos = max(int(timeout_envio * 2), 6)
+        pasos = max(int(timeout_envio * 4), 12)
         for _ in range(pasos):
-            self.page.wait_for_timeout(500)
+            self.page.wait_for_timeout(250)
             if self._contar_filas(frag) > antes:
                 return True
         return False
@@ -529,7 +538,7 @@ class SesionWhatsApp:
                     self.page.keyboard.press("Escape")
                 except Exception:
                     pass
-                self.page.wait_for_timeout(1000)
+                self.page.wait_for_timeout(500)
         return False
 
     def _intentar_adjuntar(self, ruta: str, frag_nombre: str, antes_archivo: int,
@@ -551,18 +560,19 @@ class SesionWhatsApp:
         except Exception:
             return False
 
-        # Esperar a que aparezca la vista previa del adjunto
-        for _ in range(24):
+        # Esperar a que aparezca la vista previa del adjunto (mismo
+        # presupuesto total que antes, revisando más seguido).
+        for _ in range(48):
             if self._overlay_adjunto_abierto():
                 break
-            self.page.wait_for_timeout(500)
+            self.page.wait_for_timeout(250)
         else:
             return False
 
         # En la vista previa alcanza con Enter. El clic al botón queda de
         # respaldo por si el foco no quedó en el overlay.
         self.page.keyboard.press("Enter")
-        self.page.wait_for_timeout(1200)
+        self.page.wait_for_timeout(600)
         if self._overlay_adjunto_abierto():
             self._click_enviar()
 
@@ -570,9 +580,9 @@ class SesionWhatsApp:
         # nombre del archivo (o al menos una fila nueva). Antes alcanzaba con
         # que creciera un contador, y eso daba por bueno un PDF que seguía
         # abierto en el preview sin mandarse.
-        pasos = max(int(timeout_envio * 2), 6)
+        pasos = max(int(timeout_envio * 4), 12)
         for _ in range(pasos):
-            self.page.wait_for_timeout(500)
+            self.page.wait_for_timeout(250)
             if self._overlay_adjunto_abierto():
                 continue
             if self._contar_filas(frag_nombre) > antes_archivo:

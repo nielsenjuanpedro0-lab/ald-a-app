@@ -488,13 +488,16 @@
 
         <div class="card settings-card" id="ovCardTandas" hidden>
           <h3>Tandas de rechazos</h3>
+          <div class="hint">Elegí el medio: se tilda sola su tanda más nueva. No hace falta elegir también la anterior — la comparación para detectar los segundos rechazos se hace sola, por dentro, sin bajar un PDF de más.</div>
+          <div class="ctl-row" id="ovMediosRapidos" style="margin:10px 0 14px;flex-wrap:wrap;"></div>
           <div class="toolbar" id="ovFiltros"></div>
           <div class="ov-lista" id="ovTandas"></div>
+          <div class="hint" id="ovAvisoDuplicado" style="display:none;margin-top:10px;background:var(--rust-soft);color:var(--rust);border-radius:8px;padding:8px 10px;font-weight:600;"></div>
           <div class="ctl-row" style="margin-top:14px;">
             <button class="btn btn-teal" id="btnOvDescargar" disabled>Descargar y cargar en Inicio <span class="seta">→</span></button>
             <span class="hint" id="ovResumenSel" style="margin:0;"></span>
           </div>
-          <div class="hint" style="margin-top:10px;">Para detectar a los que vienen rechazados por segunda vez, cada tanda se compara con la tanda anterior del mismo medio (por ejemplo CBU 28/10 contra CBU 13/10). Si elegís varias del mismo medio, se comparan contra la anterior a la más vieja.</div>
+          <div class="hint" style="margin-top:10px;">Igual, cada tanda elegida se compara con la tanda anterior del mismo medio (por ejemplo CBU 28/10 contra CBU 13/10) para detectar a los que vienen rechazados por segunda vez.</div>
         </div>
       </section>
 
@@ -1112,6 +1115,24 @@
   // medio (la calcula el backend por productor). Si se eligen varias del
   // mismo medio, se compara con la anterior a la más vieja.
   function renderTandas() {
+    const medios = [...new Set(ov.tandas.map(t => t.medio))].sort();
+    // ov.tandas viene de más nueva a más vieja: la primera de cada medio es la última.
+    const ultima = (m) => ov.tandas.find(t => t.medio === m);
+
+    // Acción principal: un botón grande por medio, la forma habitual de
+    // elegir ("CBU, el más nuevo") sin tocar fechas ni tildar de a una.
+    const rapidos = elOv('ovMediosRapidos');
+    rapidos.innerHTML = '';
+    for (const m of medios) {
+      const b = document.createElement('button');
+      b.className = 'btn btn-teal';
+      b.textContent = m;
+      b.addEventListener('click', () => { ov.tandasSel = new Set([ultima(m).clave]); renderTandas(); });
+      rapidos.append(b);
+    }
+
+    // Secundario: casos menos comunes (varios medios juntos, limpiar todo,
+    // o elegir una fecha vieja a mano más abajo en la lista).
     const filtros = elOv('ovFiltros');
     filtros.innerHTML = '';
     const boton = (texto, accion) => {
@@ -1121,11 +1142,7 @@
       b.addEventListener('click', () => { accion(); renderTandas(); });
       filtros.append(b);
     };
-    const medios = [...new Set(ov.tandas.map(t => t.medio))].sort();
-    // ov.tandas viene de más nueva a más vieja: la primera de cada medio es la última.
-    const ultima = (m) => ov.tandas.find(t => t.medio === m);
     boton('Últimas de cada medio', () => { ov.tandasSel = new Set(medios.map(m => ultima(m).clave)); });
-    for (const m of medios) boton(`Última ${m}`, () => { ov.tandasSel = new Set([ultima(m).clave]); });
     boton('Ninguna', () => ov.tandasSel.clear());
 
     const cont = elOv('ovTandas');
@@ -1156,12 +1173,15 @@
   function actualizarResumenTandas() {
     const n = ov.tandasSel.size;
     elOv('btnOvDescargar').disabled = n === 0;
-    if (!n) { elOv('ovResumenSel').textContent = ''; return; }
+    const aviso = elOv('ovAvisoDuplicado');
+    if (!n) { elOv('ovResumenSel').textContent = ''; aviso.style.display = 'none'; return; }
     // Por medio: la más vieja elegida manda (sus "anteriores").
     const masVieja = new Map();
+    const porMedio = new Map();
     for (const t of ov.tandas.filter(t => ov.tandasSel.has(t.clave))) {
       const v = masVieja.get(t.medio);
       if (!v || t.fecha < v.fecha) masVieja.set(t.medio, t);
+      porMedio.set(t.medio, (porMedio.get(t.medio) || 0) + 1);
     }
     const contra = [];
     for (const [m, t] of [...masVieja].sort()) {
@@ -1170,6 +1190,16 @@
     elOv('ovResumenSel').textContent = `${n} tanda${n === 1 ? '' : 's'} · ` + (contra.length
       ? `compara con: ${contra.join(', ')}`
       : 'sin tanda anterior para comparar');
+    // Tildar dos tandas del mismo medio casi siempre es sin querer (la
+    // comparación con la anterior ya es automática): avisa antes de bajar
+    // un PDF de más por cada una.
+    const duplicados = [...porMedio].filter(([, c]) => c > 1).map(([m]) => m);
+    if (duplicados.length) {
+      aviso.textContent = `Tildaste más de una tanda de ${duplicados.join(' y ')}: vas a bajar un PDF por cada una. Si solo necesitás la más nueva, destildá la otra.`;
+      aviso.style.display = 'block';
+    } else {
+      aviso.style.display = 'none';
+    }
   }
 
   elOv('btnOvBuscar').addEventListener('click', async () => {
