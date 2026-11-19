@@ -22,6 +22,7 @@ import sys
 import tempfile
 import threading
 import traceback
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -42,7 +43,7 @@ from core.utils import find_column  # noqa: E402
 from core.simulador import DEFAULT_PLANTILLA_MENSAJE, simular_agrupacion  # noqa: E402
 from core.telefonos import cruzar_telefonos  # noqa: E402
 from core.whatsapp_web import PERFIL_POR_DEFECTO, SesionWhatsApp, enviar_whatsapp_web  # noqa: E402
-from core import ov_smg  # noqa: E402
+from core import credstore, ov_smg  # noqa: E402
 
 
 # Cada pedido se procesa en su propio hilo (ver main()): sin esto, un
@@ -482,10 +483,23 @@ def _ov_log(mensaje: str) -> None:
 def cmd_ov_conectar(args: dict) -> dict:
     # Sin _pesado a propósito: puede quedar minutos esperando que la persona
     # resuelva el captcha, y mientras tanto el resto de la app tiene que andar.
-    # La contraseña no se guarda: solo pasa al formulario de login.
     usuario = (args.get("usuario") or "").strip()
-    save_config({"ov_usuario": usuario})
-    return ov_smg.conectar(usuario, args.get("password") or "", _ov_log,
+    password = args.get("password") or ""
+    cfg = load_config()
+    if not password and cfg.get("ov_usuario") == usuario:
+        # No escribió nada: si hay una guardada para ESTE mismo usuario, se
+        # usa esa. La contraseña descifrada nunca viaja al frontend (ni para
+        # precargar el campo): solo existe acá, el tiempo que tarda en
+        # pasarla al formulario de la OV.
+        password = credstore.descifrar(cfg.get("ov_password_enc") or "") or ""
+    cfg_nueva = {"ov_usuario": usuario}
+    if args.get("guardar_password") and password and credstore.disponible():
+        cfg_nueva["ov_password_enc"] = credstore.cifrar(password)
+    else:
+        # Sin tildar "recordar": se borra lo que hubiera guardado antes.
+        cfg_nueva["ov_password_enc"] = ""
+    save_config(cfg_nueva)
+    return ov_smg.conectar(usuario, password, _ov_log,
                            timeout_login=float(args.get("timeout_login", 180)))
 
 
@@ -502,7 +516,10 @@ def cmd_ov_descargar(args: dict) -> dict:
                                  list(args.get("tandas") or []), carpeta, _ov_log,
                                  incluir_mes_pasado=bool(args.get("incluir_mes_pasado", True)))
     # Quedan cargados como si se hubieran elegido a mano en las tarjetas.
-    save_config({k: resultado[k] for k in ("mes_actual", "mes_pasado", "carpeta_pdfs")})
+    # workspace_fecha marca cuándo: así, si la persona abre la app otro día,
+    # la interfaz no los da por buenos como si fueran de hoy.
+    save_config({**{k: resultado[k] for k in ("mes_actual", "mes_pasado", "carpeta_pdfs")},
+                 "workspace_fecha": date.today().isoformat()})
     return resultado
 
 

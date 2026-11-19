@@ -467,7 +467,8 @@
                 <input class="input" id="ovPassword" type="password" placeholder="Contraseña" autocomplete="current-password">
                 <button class="btn btn-teal" id="btnOvConectar">Conectar</button>
               </div>
-              <div class="hint" id="ovEstado">Se abre una ventana de la Oficina Virtual con tus datos ya cargados: si aparece el captcha, resolvelo y tocá Ingresar. Cada usuario ve solo sus productores. La contraseña no se guarda.</div>
+              <label class="checkbox-row"><input type="checkbox" id="chkOvRecordar"> Recordar usuario y contraseña</label>
+              <div class="hint" id="ovEstado">Se abre una ventana de la Oficina Virtual con tus datos ya cargados: si aparece el captcha, resolvelo y tocá Ingresar. Cada usuario ve solo sus productores. Si no tildás "Recordar", la contraseña no se guarda.</div>
             </div>
           </div>
         </div>
@@ -730,6 +731,10 @@
   }
 
   // ---- estado de la sesión: qué archivo real eligió el usuario ----
+  function hoyISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
   const workspace = { base_clientes: '', carpeta_pdfs: '', mes_pasado: '', mes_actual: '' };
   let carpetaTrabajo = '';
   let ultimoExcelSegundo = '';
@@ -777,7 +782,12 @@
       if (!elegido) return; // cancelado
       const rutas = Array.isArray(elegido) ? elegido : [elegido];
       workspace[key] = rutas.join(';');
-      await backend('save_config', { [key]: workspace[key] });
+      // base_clientes se recuerda siempre (no cambia seguido); los demás
+      // solo "valen" el mismo día: se marcan con la fecha para que al abrir
+      // la app otro día no queden dados por buenos como si fueran de hoy.
+      const cambios = { [key]: workspace[key] };
+      if (key !== 'base_clientes') cambios.workspace_fecha = hoyISO();
+      await backend('save_config', cambios);
       const nombre = rutas.length > 1
         ? `${rutas.length} PDFs seleccionados`
         : rutas[0].split(/[\\/]/).pop();
@@ -989,8 +999,17 @@
   (async () => {
     try {
       await backend('ping');
+      // Recién acá se sabe que Python respondió de verdad: cerrar el splash
+      // y mostrar la ventana real, no antes (si no, se ve vacía mientras
+      // carga) ni mucho después (si no, el splash tapa toda la carga normal).
+      invoke('pantalla_lista').catch(() => {});
       const cfg = await backend('load_config');
+      // "Base de clientes" se recuerda siempre; los rechazos/cuponeras de
+      // una tanda solo valen el mismo día en que se cargaron — si quedaron
+      // de ayer, arrancar con eso ya seleccionado confunde más de lo que ayuda.
+      const esDeHoy = cfg.workspace_fecha === hoyISO();
       for (const key of Object.keys(workspace)) {
+        if (key !== 'base_clientes' && !esDeHoy) continue;
         if (cfg[key]) workspace[key] = cfg[key];
       }
       aplicarModoFiltro(cfg.notificar_todos === true);
@@ -1005,6 +1024,10 @@
       });
       checkReady();
     } catch (e) {
+      // Si el ping nunca respondió, igual hay que mostrar la ventana real
+      // (con el aviso adentro) en vez de dejar a la persona mirando el
+      // splash para siempre sin saber que algo salió mal.
+      invoke('pantalla_lista').catch(() => {});
       showToast('No pude conectar con el backend Python: ' + e, true);
     }
   })();
@@ -1026,6 +1049,11 @@
       const cfg = await backend('load_config');
       if (cfg.ov_usuario && !elOv('ovUsuario').value) elOv('ovUsuario').value = cfg.ov_usuario;
       if (!ov.conectado && Array.isArray(cfg.ov_agentes)) ov.seleccion = new Set(cfg.ov_agentes.map(String));
+      elOv('chkOvRecordar').checked = !!cfg.ov_password_enc;
+      // La contraseña nunca viaja de vuelta al frontend, ni para precargar
+      // el campo: si hay una guardada, dejarlo vacío alcanza (el backend la
+      // usa solo si no se escribió nada). Esto es solo para avisar.
+      if (cfg.ov_password_enc) elOv('ovPassword').placeholder = 'Contraseña guardada (dejar en blanco para usarla)';
     } catch (e) { /* sin config previa: nada que completar */ }
   }
 
@@ -1090,7 +1118,7 @@
     btn.disabled = true; btn.textContent = 'Conectando…';
     elOv('ovEstado').textContent = 'Abriendo la Oficina Virtual…';
     try {
-      const r = await backend('ov_conectar', { usuario, password });
+      const r = await backend('ov_conectar', { usuario, password, guardar_password: elOv('chkOvRecordar').checked });
       elOv('ovPassword').value = '';
       ov.conectado = true;
       elOv('ovEstado').textContent = `Conectado como ${r.usuario}. Podés minimizar la ventana de la OV, pero no la cierres mientras bajás archivos.`;

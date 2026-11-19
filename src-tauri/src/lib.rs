@@ -220,6 +220,23 @@ fn backend_cancel(app: tauri::AppHandle, state: State<Backend>) -> Result<(), St
     backend_start(app, state)
 }
 
+#[tauri::command]
+fn pantalla_lista(app: tauri::AppHandle) -> Result<(), String> {
+    // El splash tapa el instante en que Python todavía no respondió nada
+    // (arranca igual de rápido o lento en cualquier máquina): recién cuando
+    // el primer "ping" vuelve sí o sí se muestra la ventana real, haya
+    // funcionado o no — así un backend que no arranca no deja a la persona
+    // mirando el splash para siempre sin ningún aviso.
+    if let Some(splash) = app.get_webview_window("splash") {
+        let _ = splash.close();
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -229,7 +246,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![backend_start, backend_call, backend_cancel])
+        .invoke_handler(tauri::generate_handler![backend_start, backend_call, backend_cancel, pantalla_lista])
         .setup(|app| {
             let handle = app.handle().clone();
             let state: State<Backend> = handle.state();
