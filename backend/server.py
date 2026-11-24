@@ -33,6 +33,34 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdin.reconfigure(encoding="utf-8")
 sys.stdout.reconfigure(encoding="utf-8")
 
+
+def _fijar_cache_de_playwright() -> None:
+    """Nuitka empaqueta el driver de Playwright (node.exe + cli.js) junto al
+    .exe, pero eso hace que el driver se comporte como una instalación
+    "local/vendorizada": en vez de buscar los navegadores en el caché normal
+    (donde SÍ están instalados, de la instalación por pip de siempre), busca
+    adentro de su propia carpeta — que viene vacía — y nunca los encuentra.
+    El código ya reintenta descargándolos de nuevo al toparse con eso
+    ("Executable doesn't exist"), pero esa descarga corre callada (sin ir a
+    ningún log) y mezclada con el protocolo JSON por stdout: se ve como que
+    la app se queda colgada en "Abriendo WhatsApp Web…"/"Entrando a la
+    Oficina Virtual…" para siempre, sin ningún error.
+    Fijando esta variable ANTES de que Playwright se use, apunta directo al
+    caché de siempre (el mismo en cualquier máquina, se haya instalado por
+    pip o no) y ni se entera del lío de la carpeta local vacía."""
+    if os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+        return
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        base = str(Path.home() / "Library" / "Caches")
+    else:
+        base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(Path(base) / "ms-playwright")
+
+
+_fijar_cache_de_playwright()
+
 import pandas as pd  # noqa: E402
 
 from app_config import load_config, save_config  # noqa: E402
@@ -178,24 +206,22 @@ def cmd_simular_agrupacion(args: dict) -> dict:
 #  Lista de clientes
 # ──────────────────────────────────────────────────────────────
 
-def _archivo_anulados(excel_path: str) -> Path:
-    return Path(excel_path).with_name(".anulados.json")
+# "Anular póliza" es una decisión sobre ESTE lote de rechazos puntual, no
+# algo que deba valer para siempre: antes quedaba grabada en un
+# ".anulados.json" al lado del Excel, y como el Excel se regenera en el
+# mismo lugar cada mes, una póliza anulada en un mes seguía apareciendo
+# anulada (sin avisar) el mes siguiente aunque fuera un rechazo nuevo y sin
+# ninguna relación. Ahora es memoria de esta sesión nomás — se revisa a
+# mano en cada lote, como ya se hace con el resto de la lista.
+_anulados_sesion: dict[str, set] = {}
 
 
 def _cargar_anulados(excel_path: str) -> set:
-    ruta = _archivo_anulados(excel_path)
-    if not ruta.exists():
-        return set()
-    try:
-        return set(json.loads(ruta.read_text(encoding="utf-8")))
-    except Exception:
-        return set()
+    return _anulados_sesion.get(str(Path(excel_path).resolve()), set())
 
 
 def _guardar_anulados(excel_path: str, anulados: set) -> None:
-    _archivo_anulados(excel_path).write_text(
-        json.dumps(sorted(anulados), ensure_ascii=False), encoding="utf-8"
-    )
+    _anulados_sesion[str(Path(excel_path).resolve())] = set(anulados)
 
 
 def _normalizar(texto: str) -> str:
