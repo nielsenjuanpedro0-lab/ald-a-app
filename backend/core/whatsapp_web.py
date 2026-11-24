@@ -62,6 +62,7 @@ from .utils import (
     clave_agrupacion,
     emit,
     find_column,
+    limpiar_lock_perfil,
     limpiar_nombre_persona,
     primer_nombre_persona,
     str_poliza,
@@ -134,6 +135,7 @@ class SesionWhatsApp:
             ) from e
 
         self.perfil_dir.mkdir(parents=True, exist_ok=True)
+        limpiar_lock_perfil(self.perfil_dir)
         self._pw = sync_playwright().start()
         args_lanzamiento = ["--disable-blink-features=AutomationControlled"]
         if self.headless:

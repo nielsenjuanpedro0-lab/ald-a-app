@@ -12,6 +12,24 @@ def emit(logger, message: str):
         logger(message)
 
 
+def limpiar_lock_perfil(perfil_dir) -> None:
+    """Si Chrome se cerró de golpe (se mató el proceso, se colgó la PC) en
+    vez de cerrarse solo, puede dejar un "Default/LOCK" o "SingletonLock"
+    viejo en el perfil. Chrome los respeta como si otra instancia siguiera
+    usando el perfil, y la próxima conexión se queda esperando ese lock
+    para siempre, sin ningún error — exactamente igual, use el perfil de
+    WhatsApp o el de la Oficina Virtual. Son solo archivos de aviso, no un
+    lock real del sistema operativo: borrarlos antes de abrir es seguro
+    porque esta función corre justo antes de levantar la única sesión que
+    AlDía va a tener abierta de ese perfil."""
+    perfil = Path(perfil_dir)
+    for nombre in ("SingletonLock", "SingletonCookie", "SingletonSocket", "Default/LOCK"):
+        try:
+            (perfil / nombre).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", str(value)).strip()
 

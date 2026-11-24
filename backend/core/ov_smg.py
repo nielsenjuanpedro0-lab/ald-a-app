@@ -30,6 +30,8 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import quote
 
+from .utils import limpiar_lock_perfil
+
 BASE_URL = "https://oficina.smg.com.ar"
 URL_VISOR = f"{BASE_URL}/Dijkstra/VisorArchivos/Index"
 URL_GETFILES = f"{BASE_URL}/Dijkstra/VisorArchivos/GetFiles"
@@ -162,6 +164,30 @@ def aplanar_arbol(arbol: list) -> list[dict]:
         else:
             visitar(raiz, "")
     productores.sort(key=lambda p: (p["organizador"], p["nombre"]))
+    return productores
+
+
+def _productores_de_select(page) -> list[dict]:
+    """Respaldo para cuentas con pocos productores: la OV no les arma el
+    árbol de JavaScript (jsTree) — en su lugar les pone un <select> HTML
+    común con las opciones, sin ningún organizador. "arbolProductores" en
+    esa versión de la página es solo el id de la sección que lo contiene,
+    no la variable que esperábamos leer."""
+    try:
+        opciones = page.eval_on_selector_all(
+            "#AgenteSeleccionado option",
+            "els => els.map(e => ({valor: e.value, texto: e.textContent}))",
+        )
+    except Exception:
+        return []
+    productores = []
+    for o in opciones or []:
+        codigo = str(o.get("valor") or "").strip()
+        if not codigo:
+            continue
+        texto = str(o.get("texto") or "").strip()
+        nombre = texto.split("-", 1)[1].strip() if "-" in texto else texto
+        productores.append({"codigo": codigo, "nombre": nombre, "organizador": ""})
     return productores
 
 
@@ -449,6 +475,7 @@ def _conectar(t: _TrabajadorOV, usuario: str, password: str, log, timeout_login:
         # mantiene su propia sesión y no se pisan entre sí.
         perfil = PERFILES_DIR / _nombre_seguro(usuario.lower())
         perfil.mkdir(parents=True, exist_ok=True)
+        limpiar_lock_perfil(perfil)
         t._pw = sync_playwright().start()
         # Chrome normal (con ventana), pero arranca fuera de la pantalla y se
         # minimiza enseguida: no molesta mientras trabaja. Solo se muestra si
@@ -505,6 +532,8 @@ def _conectar(t: _TrabajadorOV, usuario: str, password: str, log, timeout_login:
 
     arbol = page.evaluate("() => (typeof arbolProductores !== 'undefined') ? arbolProductores : null")
     productores = aplanar_arbol(arbol or [])
+    if not productores:
+        productores = _productores_de_select(page)
     log(f"Conectado a la OV como {usuario}: {len(productores)} productores disponibles.")
     return {"usuario": usuario, "productores": productores}
 
