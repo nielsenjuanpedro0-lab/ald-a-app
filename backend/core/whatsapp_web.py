@@ -135,11 +135,18 @@ class SesionWhatsApp:
 
         self.perfil_dir.mkdir(parents=True, exist_ok=True)
         self._pw = sync_playwright().start()
+        args_lanzamiento = ["--disable-blink-features=AutomationControlled"]
+        if self.headless:
+            # Sin esto, Chromium headless puede quedarse colgado para
+            # siempre arrancando el proceso de GPU en máquinas con drivers
+            # de video más raros (más común de lo que parece en PCs de
+            # oficina) — nunca llega a tirar ningún error, solo no avanza.
+            args_lanzamiento += ["--disable-gpu", "--disable-software-rasterizer", "--disable-dev-shm-usage"]
         kwargs_lanzamiento = dict(
             user_data_dir=str(self.perfil_dir),
             headless=self.headless,
             viewport={"width": 1280, "height": 900},
-            args=["--disable-blink-features=AutomationControlled"],
+            args=args_lanzamiento,
         )
         if self.headless:
             # Chromium headless se anuncia como tal en el user-agent
