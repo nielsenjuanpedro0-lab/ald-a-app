@@ -149,6 +149,11 @@ class SesionWhatsApp:
             headless=self.headless,
             viewport={"width": 1280, "height": 900},
             args=args_lanzamiento,
+            # Sin esto, si el navegador no termina de arrancar (por lo que
+            # sea: el perfil, el equipo, lo que sea) se queda esperando para
+            # siempre en vez de avisar con un error — y el próximo intento
+            # puede chocar con el anterior, que sigue vivo de fondo.
+            timeout=45000,
         )
         if self.headless:
             # Chromium headless se anuncia como tal en el user-agent

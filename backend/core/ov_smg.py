@@ -482,7 +482,10 @@ def _conectar(t: _TrabajadorOV, usuario: str, password: str, log, timeout_login:
         # la OV pide algo que hay que resolver a mano (ver _mostrar_ventana).
         kwargs = dict(user_data_dir=str(perfil), headless=False,
                       viewport={"width": 1200, "height": 820}, accept_downloads=True,
-                      args=["--window-position=-32000,-32000"])
+                      args=["--window-position=-32000,-32000"],
+                      # Si el navegador no arranca, que falle con un error en
+                      # vez de quedarse esperando para siempre.
+                      timeout=45000)
         try:
             t.ctx = t._pw.chromium.launch_persistent_context(**kwargs)
         except Exception as e:
