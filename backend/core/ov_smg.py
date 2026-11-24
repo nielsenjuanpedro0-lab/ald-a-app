@@ -120,31 +120,44 @@ def parsear_fila(fila: dict) -> ArchivoOV | None:
 
 def aplanar_arbol(arbol: list) -> list[dict]:
     """El árbol de la página (organizador -> productores) a una lista plana
-    de productores con su organizador, que es lo que muestra la interfaz."""
+    de productores con su organizador, que es lo que muestra la interfaz.
+
+    El árbol real (jsTree) no siempre trae un dict en cada nodo — algunas
+    cuentas tienen hojas sueltas como texto plano. Un nodo así no es un
+    productor real (no tiene id/li_attr), así que se saltea en vez de
+    romper toda la conexión por un nodo raro."""
     productores = []
     vistos = set()
 
     def visitar(nodo, organizador):
-        attr = nodo.get("li_attr") or {}
-        hijos = nodo.get("children") or []
+        if not isinstance(nodo, dict):
+            return
+        attr = nodo.get("li_attr")
+        attr = attr if isinstance(attr, dict) else {}
+        hijos = nodo.get("children")
+        hijos = hijos if isinstance(hijos, list) else []
         if attr.get("esFinal") or not hijos:
             codigo = str(nodo.get("id", "")).strip()
             if codigo and codigo not in ("-1", "0") and codigo not in vistos:
                 vistos.add(codigo)
-                nombre = attr.get("nombre") or re.sub(r"^\s*\d+\s*-\s*", "", nodo.get("text", ""))
+                nombre = attr.get("nombre") or re.sub(r"^\s*\d+\s*-\s*", "", str(nodo.get("text", "")))
                 productores.append({
                     "codigo": codigo,
                     "nombre": str(nombre).strip(),
                     "organizador": organizador,
                 })
         for h in hijos:
-            visitar(h, organizador if organizador else (attr.get("nombre") or nodo.get("text", "")).strip())
+            visitar(h, organizador if organizador else (attr.get("nombre") or str(nodo.get("text", ""))).strip())
 
     for raiz in arbol or []:
-        attr = raiz.get("li_attr") or {}
+        if not isinstance(raiz, dict):
+            continue
+        attr = raiz.get("li_attr")
+        attr = attr if isinstance(attr, dict) else {}
         org = (attr.get("nombre") or raiz.get("text") or "").strip()
-        if raiz.get("children"):
-            for h in raiz["children"]:
+        hijos_raiz = raiz.get("children")
+        if isinstance(hijos_raiz, list) and hijos_raiz:
+            for h in hijos_raiz:
                 visitar(h, org)
         else:
             visitar(raiz, "")
@@ -470,7 +483,12 @@ def _conectar(t: _TrabajadorOV, usuario: str, password: str, log, timeout_login:
         log("Iniciando sesión…")
         page.click(SEL_INGRESAR, timeout=10000)
         try:
-            _esperar_login(page, 25)
+            # 60s, no 25: un login con verificación invisible (reCAPTCHA v3)
+            # contra un servidor real puede tardar bastante sin que haga
+            # falta ninguna ayuda humana — mostrar la ventana antes de tiempo
+            # era la causa de que "pida verificación" mucho más seguido de lo
+            # que en realidad hace falta.
+            _esperar_login(page, 60)
         except TimeoutError:
             # Sin error visible y sin entrar: la OV quedó esperando algo (ej.
             # el desafío del captcha). Se muestra la ventana para resolverlo.
