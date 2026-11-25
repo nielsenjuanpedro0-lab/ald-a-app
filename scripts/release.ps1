@@ -27,10 +27,19 @@ $version = $conf.version
 Write-Output "Compilando AlDía v$version ..."
 
 Push-Location $root
+# Con "Stop", PowerShell 5.1 trata cualquier línea de stderr de npm/node
+# ("Info Looking up installed tauri packages...") como error fatal y aborta
+# aunque el build ande. El resultado real lo dice $LASTEXITCODE.
+$ErrorActionPreference = "Continue"
 try {
     npm run build
+    $buildExit = $LASTEXITCODE
 } finally {
+    $ErrorActionPreference = "Stop"
     Pop-Location
+}
+if ($buildExit -ne 0) {
+    Write-Error "npm run build falló (exit $buildExit)."
 }
 
 $bundleDir = Join-Path $root "src-tauri\target\release\bundle"
@@ -54,7 +63,7 @@ $latest = [ordered]@{
     platforms = [ordered]@{
         "windows-x86_64" = [ordered]@{
             signature = $signature.Trim()
-            url       = "REEMPLAZAR: link de descarga del .exe en la Release de GitHub"
+            url       = "https://github.com/nielsenjuanpedro0-lab/ald-a-app/releases/download/v$version/$($nsis.Name)"
         }
     }
 }
@@ -71,6 +80,7 @@ Write-Output "Listo. Para publicar la actualización:"
 Write-Output "  1. Crea una Release nueva en GitHub con el tag v$version"
 Write-Output "  2. Subi como adjuntos:"
 Write-Output "       - $($nsis.FullName)"
-Write-Output "       - $latestPath   (antes de subirlo, reemplazá 'url' por el link real del .exe ya subido)"
+Write-Output "       - $latestPath"
+Write-Output "     (o: gh release create v$version `"$($nsis.FullName)`" `"$latestPath`" --title v$version)"
 Write-Output "  3. Listo: la próxima vez que alguien abra AlDía, le va a aparecer el cartel de actualizar."
 

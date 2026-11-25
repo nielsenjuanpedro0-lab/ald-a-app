@@ -48,13 +48,14 @@ falta que vuelvan a descargar el .zip a mano.
 
 Para publicar una versión nueva:
 
-1. Subí la versión en `src-tauri/tauri.conf.json` (campo `"version"`).
-2. Corré `.\scripts\release.ps1` — compila, firma, y te arma
-   `src-tauri/target/release/bundle/latest.json`.
-3. Creá una Release nueva en GitHub (repo `aldia-app`), tag `vX.Y.Z`.
-4. Subí como adjuntos el instalador (`...-setup.exe`) y `latest.json`
-   (después de pegarle el link real de descarga del instalador en el
-   campo `url` — el script te lo recuerda).
+1. Si cambió algo en `backend/`, recompilá el backend: `cd backend; .\build_exe.ps1`.
+2. Subí la versión en `package.json` y `src-tauri/tauri.conf.json` (campo
+   `"version"`, el mismo número en los dos).
+3. Corré `.\scripts\release.ps1` — compila, firma, y te arma
+   `src-tauri/target/release/bundle/latest.json` con el link de descarga ya puesto.
+4. Creá la Release en GitHub (repo `ald-a-app`), tag `vX.Y.Z`, con el
+   instalador (`...-setup.exe`) y `latest.json` como adjuntos — el script
+   imprime el comando `gh release create` exacto.
 
 La clave privada que firma las actualizaciones vive en
 `~/.tauri/aldia-update.key`, fuera del repo. **No se comparte ni se
@@ -63,11 +64,11 @@ los usuarios en versiones viejas tendrían que reinstalar a mano esa vez.
 
 ## Estado actual
 
-Conectado de verdad: elegir los 4 archivos (diálogo nativo de Windows),
-guardarlos en la configuración, y los primeros cuatro pasos del flujo
-(detectar rechazos, fragmentar PDFs, vincular cupones, cruzar teléfonos)
-corren contra el backend Python real.
+Todo conectado al backend Python real:
 
-Todavía en mockup visual, sin conectar: el paso 5 (enviar por WhatsApp,
-con la sesión de WhatsApp Web y sus reintentos), y las pantallas de
-Configuración, Lista de clientes e Historial.
+- Descarga de rechazos desde la Oficina Virtual de SMG (`backend/core/ov_smg.py`).
+- Los cinco pasos del flujo: detectar rechazos, fragmentar PDFs, vincular
+  cupones, cruzar teléfonos y enviar por WhatsApp Web
+  (`backend/core/whatsapp_web.py`, sesión headless con reintentos).
+- Pantallas de Configuración, Lista de clientes (editar teléfono, anular
+  póliza, imprimir listado) e Historial.
