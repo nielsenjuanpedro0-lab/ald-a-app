@@ -490,6 +490,13 @@ def _conectar(t: _TrabajadorOV, usuario: str, password: str, log, timeout_login:
             t.ctx = t._pw.chromium.launch_persistent_context(**kwargs)
         except Exception as e:
             if "Executable doesn't exist" not in str(e):
+                # Si no se para el driver acá, el Chrome que estaba
+                # arrancando (o esperando el timeout) queda zombie para
+                # siempre, acumulándose en cada reintento.
+                try:
+                    t._pw.stop()
+                except Exception:
+                    pass
                 raise
             t._pw.stop()
             SesionWhatsApp(log=log)._instalar_chromium()

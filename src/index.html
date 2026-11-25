@@ -898,7 +898,14 @@
     // Mismo cuidado que en conectarWhatsapp: si el chequeo automático de
     // cada 2 minutos se dispara mientras esto está enviando, pelean por la
     // misma sesión de Chrome (todo se pone lento y el chip muestra "sin
-    // conectar" a pesar de que el envío sigue andando bien).
+    // conectar" a pesar de que el envío sigue andando bien). Por eso, si ya
+    // hay una conexión en curso (el chequeo automático, por ejemplo), se
+    // espera a que termine en vez de mandar un segundo pedido al backend
+    // que se queda haciendo cola esperando el mismo Chrome.
+    if (waConectando) {
+      showToast('Esperá que termine de conectar WhatsApp…', true);
+      return;
+    }
     waConectando = true;
     btnIniciar.disabled = true;
     btnIniciar.textContent = 'Enviando…';

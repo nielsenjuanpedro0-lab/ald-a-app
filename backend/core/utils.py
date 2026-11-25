@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 from pathlib import Path
 from typing import Iterable
 
@@ -13,16 +15,45 @@ def emit(logger, message: str):
 
 
 def limpiar_lock_perfil(perfil_dir) -> None:
-    """Si Chrome se cerró de golpe (se mató el proceso, se colgó la PC) en
-    vez de cerrarse solo, puede dejar un "Default/LOCK" o "SingletonLock"
-    viejo en el perfil. Chrome los respeta como si otra instancia siguiera
-    usando el perfil, y la próxima conexión se queda esperando ese lock
-    para siempre, sin ningún error — exactamente igual, use el perfil de
-    WhatsApp o el de la Oficina Virtual. Son solo archivos de aviso, no un
-    lock real del sistema operativo: borrarlos antes de abrir es seguro
-    porque esta función corre justo antes de levantar la única sesión que
-    AlDía va a tener abierta de ese perfil."""
+    """Si un intento anterior de abrir este perfil se colgó y se le cortó
+    el tiempo (timeout de `launch_persistent_context`), puede quedar un
+    chrome-headless-shell.exe zombie corriendo de fondo, todavía agarrado a
+    este mismo perfil — y con él vivo, no alcanza con borrar el LOCK: el
+    próximo intento se vuelve a colgar contra el mismo proceso. Por eso
+    primero se mata cualquier proceso de este perfil puntual (nunca otros:
+    se filtra por el --user-data-dir exacto) y recién después se borran los
+    archivos de lock ("Default/LOCK", "SingletonLock", etc., que Chrome
+    respeta como si otra instancia siguiera usando el perfil) — igual para
+    el perfil de WhatsApp que el de la Oficina Virtual."""
     perfil = Path(perfil_dir)
+    if sys.platform == "win32":
+        try:
+            filtro = str(perfil).replace("'", "''")
+            # El --user-data-dir solo aparece en la línea de comando del
+            # proceso raíz (el que arranca Chrome): los procesos hijos
+            # (renderers, GPU) lo heredan por IPC, no por línea de comando.
+            # Si solo se mata la raíz, los hijos quedan huérfanos y vivos
+            # igual — hay que matar todo el árbol.
+            script = (
+                "$all = Get-CimInstance Win32_Process -Filter \"Name='chrome-headless-shell.exe' or Name='chrome.exe'\"; "
+                f"$roots = $all | Where-Object {{ $_.CommandLine -like '*{filtro}*' }} | Select-Object -ExpandProperty ProcessId; "
+                "$toKill = [System.Collections.Generic.HashSet[int]]::new(); "
+                "$queue = [System.Collections.Generic.Queue[int]]::new(); "
+                "foreach ($r in $roots) { $toKill.Add($r) | Out-Null; $queue.Enqueue($r) }; "
+                "while ($queue.Count -gt 0) { "
+                "$p = $queue.Dequeue(); "
+                "foreach ($c in ($all | Where-Object { $_.ParentProcessId -eq $p })) { "
+                "if ($toKill.Add($c.ProcessId)) { $queue.Enqueue($c.ProcessId) } } }; "
+                "foreach ($pid2 in $toKill) { Stop-Process -Id $pid2 -Force -ErrorAction SilentlyContinue }"
+            )
+            subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                capture_output=True,
+                timeout=15,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+        except Exception:
+            pass
     for nombre in ("SingletonLock", "SingletonCookie", "SingletonSocket", "Default/LOCK"):
         try:
             (perfil / nombre).unlink(missing_ok=True)

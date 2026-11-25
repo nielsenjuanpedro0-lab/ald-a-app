@@ -169,6 +169,13 @@ class SesionWhatsApp:
             self.ctx = self._pw.chromium.launch_persistent_context(**kwargs_lanzamiento)
         except Exception as e:
             if "Executable doesn't exist" not in str(e):
+                # Si no se para el driver acá, el Chrome que estaba
+                # arrancando (o esperando el timeout) queda zombie para
+                # siempre, acumulándose en cada reintento.
+                try:
+                    self._pw.stop()
+                except Exception:
+                    pass
                 raise
             self._pw.stop()
             self._instalar_chromium()
