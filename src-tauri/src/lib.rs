@@ -185,8 +185,17 @@ async fn backend_call(app: tauri::AppHandle, state: State<'_, Backend>, cmd: Str
     // corren sobre el mismo hilo que la ventana, la app entera se quedaba
     // "sin responder" durante toda la espera. spawn_blocking lo saca a un
     // hilo aparte para que la ventana siga viva mientras tanto.
+    //
+    // "whatsapp_enviar_todos" manda TODO el lote en un solo pedido: en una
+    // PC más lenta, cada mensaje (abrir el chat, escribir, adjuntar el PDF)
+    // tarda más, y con varias decenas de clientes la suma cruza los 15
+    // minutos aunque cada uno esté yendo bien — reportado por un usuario:
+    // conectaba sin problema, pero al enviar los mensajes daba timeout. Se
+    // puede esperar más tranquilo porque ya hay una forma de cancelarlo
+    // (backend_cancel) si de verdad se cuelga.
+    let timeout_secs = if cmd == "whatsapp_enviar_todos" { 7200 } else { 900 };
     let valor = tauri::async_runtime::spawn_blocking(move || {
-        rx.recv_timeout(Duration::from_secs(900))
+        rx.recv_timeout(Duration::from_secs(timeout_secs))
     })
     .await
     .map_err(|e| e.to_string())?
