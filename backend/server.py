@@ -414,6 +414,15 @@ _sesion_wa: SesionWhatsApp | None = None
 _sesion_wa_lock = threading.Lock()
 _sesion_wa_timer: threading.Timer | None = None
 
+# 180s alcanza en una PC normal para que WhatsApp Web muestre la lista de
+# chats de un perfil ya logueado, pero en una PC más lenta ese arranque en
+# frío (sobre todo si la sesión se cerró sola por inactividad, ver abajo)
+# puede tardar más — sin que haga falta ningún QR real. Si se agota este
+# plazo sin ver ni la lista de chats ni el QR, se tira un error que pide
+# "escaneá el QR" aunque nunca haya aparecido uno, que es justo lo que
+# pasó: confundía una PC lenta con una sesión perdida.
+TIMEOUT_LOGIN_WA_DEFECTO = 420
+
 # Gente de este rubro suele tener la PC con todo abierto (Chrome con un
 # montón de pestañas, Excel, etc.) — casi sin memoria libre. Dejar un Chrome
 # de WhatsApp prendido el resto de la sesión, aunque no se use más, puede
@@ -468,7 +477,7 @@ def cmd_whatsapp_probar(args: dict) -> dict:
     perfil = args.get("perfil_dir") or str(PERFIL_POR_DEFECTO)
     _emitir_evento("log", {"message": "Abriendo WhatsApp Web…"})
     try:
-        _obtener_sesion_whatsapp(perfil, args.get("timeout_login", 180))
+        _obtener_sesion_whatsapp(perfil, args.get("timeout_login", TIMEOUT_LOGIN_WA_DEFECTO))
     finally:
         _qr_callback(None)
         _reprogramar_cierre_por_inactividad()
@@ -482,7 +491,7 @@ def cmd_whatsapp_enviar_todos(args: dict) -> dict:
     levantar un Chrome nuevo para el envío."""
     perfil = args.get("perfil_dir") or str(PERFIL_POR_DEFECTO)
     try:
-        sesion = _obtener_sesion_whatsapp(perfil, args.get("timeout_login", 180))
+        sesion = _obtener_sesion_whatsapp(perfil, args.get("timeout_login", TIMEOUT_LOGIN_WA_DEFECTO))
         resumen = enviar_whatsapp_web(
             excel_entrada=args["excel_entrada"],
             log=_log_callback,
